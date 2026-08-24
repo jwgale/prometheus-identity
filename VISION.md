@@ -533,6 +533,16 @@ Kernel set_issuer_threshold writes issuer.json and then appends a signed issuanc
 
 The laboratory source and public see-walk artifacts are in the public GitHub repository https://github.com/jwgale/prometheus-identity. The repository name is the Cargo package name prometheus_identity. That name is not a market name. This is not Sanctum. This is not a Cyera product. issuer.secret, biscuit secrets, holder secrets, member-two secrets, data directories, and prometheus-lab-vpc are not in that repository. GitHub Actions are not added.
 
+### Standing data-a cutover (done, 23 August 2026)
+
+Standing store data-a on hostname 5090 is now issuance threshold_n 2, member_count 2, verify_threshold_n 1, sealed no. Member two was written as a new secret through --secret-path /home/jason/Projects/prometheus-lab-vpc/mnt-member-two/member-two.secret. The laptop file /home/jason/Projects/prometheus-lab-vpc/member-two.secret was not copied. That laptop file mtime remains 19 August 2026 12:24 CDT.
+
+A raise without --member-secret refused and left threshold_n at 1. That is Rung 105 on the live store. A raise with the mount path set threshold_n to 2.
+
+After the raise, an agent type written at n=1 refused at birth even with the path. New agent type 01M0RPB06MQYYK1BFYPSNEBZSH was added with the path. Birth without the path refused. Birth with the path allowed. The proof instance is 01M0RPC3Q0MMQ2BBA0BKJMXXAK. Kill without the path refused. Kill with the path revoked that proof instance. Standing instance 01M0D6XG76SFGNZRSNFM8C7297 stays live. data-a was not shredded. verify_threshold_n was not raised. n=3 was not started. SPIRE was not started.
+
+After this cutover, standing laboratory mint is broken unless the member-two mount is up. Do not raise threshold again. Do not raise verify_threshold_n.
+
 ### Product names (locked, 21 August 2026 and 22 August 2026)
 
 Create Agent Principal is the product name for birth. Assertion Act is the product name for present. Decommission is the product name for death. Decommission is the end-of-life workflow for the identity. Check stays until Jason Gale locks a new word. Kernel paths stay mapped. See NAMING.md. Closed rungs were not rewritten.

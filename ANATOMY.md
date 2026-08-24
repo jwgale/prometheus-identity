@@ -8,6 +8,8 @@ This document uses ASD-STE100 Simplified Technical English. Technical names appe
 
 GitHub publication landed on 23 August 2026 as https://github.com/jwgale/prometheus-identity. That repository name is the Cargo package name prometheus_identity. That name is not a market name. issuer.secret, biscuit secrets, holder secrets, member-two secrets, data directories, and prometheus-lab-vpc stay off GitHub.
 
+Standing store data-a on hostname 5090 is issuance threshold_n 2, member_count 2, verify_threshold_n 1, sealed no. Member two lives at the typed mount path /home/jason/Projects/prometheus-lab-vpc/mnt-member-two/member-two.secret. The laptop member-two.secret was not copied. After this cutover, standing laboratory mint is broken unless that mount is up. Do not raise threshold again. Do not raise verify_threshold_n. Do not start n=3. Do not start SPIRE. Do not shred data-a.
+
 ## 1. Closed set
 
 Five records exist. A sixth identity record is refused.

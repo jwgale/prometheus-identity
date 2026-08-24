@@ -388,3 +388,7 @@ The laboratory test count at this close is 520 tests. This page does not say the
 
 The laboratory test count at this close is 522 tests. This page does not say the bet is won.
 
+## Standing data-a cutover
+
+23 August 2026. Standing store data-a on hostname 5090 now holds issuance threshold_n 2, member_count 2, verify_threshold_n 1, sealed no. issuer member add used --secret-path /home/jason/Projects/prometheus-lab-vpc/mnt-member-two/member-two.secret and wrote a new member-two secret. The laptop file /home/jason/Projects/prometheus-lab-vpc/member-two.secret was not copied. That laptop file mtime remains 19 August 2026 12:24 CDT. issuer set-threshold without --member-secret refused and left threshold_n at 1. That is Rung 105 on the live store. issuer set-threshold with the mount path set threshold_n to 2. An agent type written at n=1 refused at birth even with the path. New agent type 01M0RPB06MQYYK1BFYPSNEBZSH was added with the path. Birth without the path refused. Birth with the path allowed. The proof instance is 01M0RPC3Q0MMQ2BBA0BKJMXXAK. Kill without the path refused. Kill with the path revoked that proof instance. Standing instance 01M0D6XG76SFGNZRSNFM8C7297 stays live. data-a was not shredded. verify_threshold_n was not raised. After this cutover, standing laboratory mint is broken unless the member-two mount is up. Rust was not changed by this record. This page does not say the bet is won.
+
