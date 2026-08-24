@@ -6,6 +6,8 @@ This document is for Jason Gale. This package is Jason Gale side-project laborat
 
 This document uses ASD-STE100 Simplified Technical English. Technical names appear in full words.
 
+GitHub publication landed on 23 August 2026 as https://github.com/jwgale/prometheus-identity. That repository name is the Cargo package name prometheus_identity. That name is not a market name. issuer.secret, biscuit secrets, holder secrets, member-two secrets, data directories, and prometheus-lab-vpc stay off GitHub.
+
 ## 1. Closed set
 
 Five records exist. A sixth identity record is refused.
@@ -91,7 +93,6 @@ These items are not decided as product source of truth.
 - A post-quantum Biscuit envelope, when that project can carry Module-Lattice signatures.
 - A SPIFFE presenter is a laboratory X.509-SVID wrap of present. The instance is not a distinguished name. Short life is not kill. The Uniform Resource Identifier subject alternative name names the presentation. NotAfter is the earlier of presentation expires_at and now plus 300 seconds. The issuing store refuses a historical SVID wrap after local kill. A foreign verifier binds the wrap to the envelope public key carried in the signed present. This is not SPIRE.
 - A public listener. Host remains loopback only.
-- GitHub publication.
 - How a later market names the well-known check. The laboratory path is /.well-known/prometheus-check.
 
 ## 6. Refuse list for later work
