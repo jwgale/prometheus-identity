@@ -1,0 +1,49 @@
+[package]
+name = "prometheus_identity"
+version = "0.1.0"
+edition = "2021"
+description = "Prometheus laboratory prototype for agent identity. This is not Sanctum product source of truth. This is not a Cyera product."
+license = "MIT"
+publish = false
+authors = ["Jason Gale / PolicyLab-2"]
+
+[lib]
+name = "prometheus_identity"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1"
+biscuit-auth = "6.0"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+ed25519-dalek = "2.2"
+hex = "0.4"
+sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+# Pinned so the dependency graph compiles on rustc 1.85.
+time = "=0.3.41"
+ulid = { version = "1", features = ["serde"] }
+fips204 = "0.4"
+# Laboratory X.509-SVID wrap of present. This is not SPIRE.
+# The certificate is signed with the laboratory Ed25519 envelope key.
+# Module-Lattice Digital Signature Algorithm in X.509 is not used tonight.
+# The identity root stays Module-Lattice. Pin versions. Do not upgrade the whole graph.
+rcgen = { version = "=0.13.2", default-features = false, features = ["pem", "crypto", "ring"] }
+x509-parser = "=0.16.0"
+# Laboratory Workload Identity Token (typed JSON Web Token) and Content-Digest.
+# This is a WIMSE on-ramp artifact. This is not a sixth identity record.
+base64 = "0.22"
+# Laboratory runtime TLS client for https://check.prestigeworldwide.digital only.
+# Loopback stays raw HTTP. This crate does not add a TLS server.
+# Pin versions so the graph compiles on rustc 1.85. Do not upgrade the whole graph.
+rustls = { version = "=0.23.23", default-features = false, features = ["std", "tls12", "ring"] }
+webpki-roots = "=0.26.8"
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "prometheus"
+path = "src/main.rs"
