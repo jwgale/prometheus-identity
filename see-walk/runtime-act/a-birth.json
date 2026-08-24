@@ -1,0 +1,6 @@
+{
+  "instance_id": "01M0J90ESWKSY6MW8A0MT2E2V1",
+  "capability_id": "01M0J90ETDJZ7NCY564AW8JC0K",
+  "holder_secret_path": "/tmp/prometheus-runtime-act-a/holders/01M0J90ESWKSY6MW8A0MT2E2V1.secret",
+  "revoke_identifier": "21ea7e596f859780ef3ae838cc7d3bdb80e489eed766978083940288831e8d175fd2c6367fe3bc83fc2a4f5c747f0d34f735c6462a43a3014b2b3b69a0d6a803"
+}

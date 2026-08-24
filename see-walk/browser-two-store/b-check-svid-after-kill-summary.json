@@ -1,0 +1,4 @@
+{
+  "result": "refused",
+  "reason": "The verification failed: This store accepted a kill for this instance. Present verify is refused after kill accept. Death travels as a kill bundle. The check fails closed."
+}

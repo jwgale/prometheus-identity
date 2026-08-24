@@ -1,0 +1,13 @@
+{
+  "http_status": 200,
+  "instance_id": "01M0RG5N7MG3FZAS9B0EJRB2EK",
+  "capability_id": "01M0RG5NAK92S03B8T9VP1SJSJ",
+  "holder_secret_path_on_throwaway_store": true,
+  "response_keys": [
+    "capability_id",
+    "holder_secret_path",
+    "instance_id",
+    "revoke_identifier"
+  ],
+  "secret_bytes_returned": false
+}

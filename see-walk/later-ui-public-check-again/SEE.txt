@@ -1,0 +1,23 @@
+Later user interface public Check again walk
+
+Date: 23 August 2026 02:56 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The throwaway issuing store lived under /tmp/prometheus-later-ui-public-check-again-a and was deleted after this walk.
+
+The issuing host listened on 127.0.0.1:18822 only and is stopped after this walk. GET / on that host is the later user interface. Check again already posts the last present. The page types a check base. The accepted public base is https://check.prestigeworldwide.digital.
+
+The walk used the same HTTP JSON that GET / Check and Check again post. The walk did not use prometheus CLI check verbs. The walk did not spawn AgentProcess.
+
+Create Agent Principal stayed on 127.0.0.1. POST /well-known-follow of the public check base resolved issuer-accept and kill-accept from operator_pin_paths. POST /operator-pin issuer-accept on the issuing host returned 200. This throwaway issuer was not already pinned. issuer.secret was not copied onto the public host. The walk did not hardcode public /kill-accept as the accept URL.
+
+POST /runtime-check on the loopback issuing host with check_base https://check.prestigeworldwide.digital allowed. Check again of that same present also allowed. ALLOWED was not stored. Each post hit the host. The holder secret path stayed on the issuing host. Secret bytes were not sent to the public name.
+
+After Decommission, POST /kill-export on the issuing host returned the three public artifacts. POST /operator-pin kill-accept returned 200. A following Check again POST /runtime-check of the same present returned 403. The reason is accepted kill, not expiry and not a missing inode.
+
+A following POST /check-svid of that same historical Assertion Act on the public host also returned 403 because this store accepted a kill.
+
+Live GET https://check.prestigeworldwide.digital stayed check-only JSON. Live POST /runtime-check, POST /operator-pin, and POST /well-known-follow on that name stayed 403.
+
+This walk did not change rust. Check again JavaScript already replayed the last present. GET /laboratory Check both was not invented.
+
+This is not SPIRE. This is not a replica. This is not Sanctum.

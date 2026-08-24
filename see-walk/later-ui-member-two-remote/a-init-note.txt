@@ -1,0 +1,1 @@
+init ran on this machine. Secret files stayed under /tmp/prometheus-later-ui-member-two-remote-20260823. The standing issuer was not used.

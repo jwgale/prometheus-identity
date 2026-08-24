@@ -1,0 +1,19 @@
+Later user interface remote member-secret path public allow then refuse
+
+Date: 23 August 2026 17:21 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-later-ui-member-two-public-20260823 and was shredded after this walk.
+
+GET / on 127.0.0.1:18834 is the later user interface. The walk used the same HTTP JSON that GET / posts. Init stayed on the command line. Host start was a listen command. Holder-sign ran locally. The walk did not use prometheus CLI birth, present, kill, or check verbs after the host was up. The walk did not spawn AgentProcess.
+
+POST /member-two wrote member two through an SSHFS mount of ubuntu@10.43.1.186:/home/ubuntu/member-two-custody. Secret bytes were not returned. The standing laptop member-two.secret was not copied. issuer.secret stayed on the issuing computer. POST /set-issuer-threshold set threshold_n to 2 on this throwaway issuer only. POST /agent-type used member_secret_path after that raise.
+
+POST /birth without member_secret_path returned 403 and named that required path. POST /birth with the remote path returned 200. POST /present-svid with the same remote path returned 200 and two issuer member signatures.
+
+GET https://check.prestigeworldwide.digital/.well-known/prometheus-check returned bind check.prestigeworldwide.digital. POST /issuer-accept pinned this throwaway public key only. Holder-sign ran locally. POST /check-svid allowed.
+
+After Decommission and POST /kill-export with member_secret_path, POST /kill-accept on the public name returned 200. The accepted kill list includes this instance. A following POST /check-svid of the same historical Assertion Act returned 403 because this store accepted a kill, not because of expiry.
+
+The throwaway store was shredded. The VPC custody directory was left in place. Standing data-a threshold_n stayed 1. The laptop member-two.secret mtime stayed 19 August 2026 12:24 CDT. VPC issuer.secret count stayed 0. Rust was not changed.
+
+This is not a public listener for birth. This is not SPIRE. This is not a replica. This is not a sixth identity record. This is not Sanctum.

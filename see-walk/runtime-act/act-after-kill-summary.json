@@ -1,0 +1,10 @@
+{
+  "result": "refused",
+  "instance_id": "01M0J90ESWKSY6MW8A0MT2E2V1",
+  "capability_id": "01M0J90ETDJZ7NCY564AW8JC0K",
+  "intent": "read",
+  "audience": "internal",
+  "on_behalf_of": "autonomous",
+  "reason": "The verification failed: This store accepted a kill for this instance. Present verify is refused after kill accept. Death travels as a kill bundle. The check fails closed.",
+  "has_receipt": false
+}

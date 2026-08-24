@@ -1,0 +1,38 @@
+{
+  "bind": "check.prestigeworldwide.digital",
+  "checks": [
+    {
+      "method": "POST",
+      "path": "/check-svid"
+    },
+    {
+      "method": "POST",
+      "path": "/check-wimse"
+    }
+  ],
+  "death_wins": true,
+  "instance_identifier_in_path": false,
+  "laboratory_name": "prometheus-check",
+  "on_ramp_artifacts": [
+    "X.509-SVID",
+    "WIMSE"
+  ],
+  "operator_pin_paths": [
+    {
+      "method": "POST",
+      "path": "/seal-accept"
+    },
+    {
+      "method": "POST",
+      "path": "/previous-key-accept"
+    }
+  ],
+  "present": "document",
+  "refuses_other_interfaces": true,
+  "short_life_is_not_kill": true,
+  "store_b_check": "A Store B check needs a holder signature over that nonce. The holder secret does not live on the verifier.",
+  "verifier_challenge": {
+    "method": "POST",
+    "path": "/verifier-challenge"
+  }
+}

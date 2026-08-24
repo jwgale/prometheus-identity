@@ -1,0 +1,15 @@
+Public check before-tool walk
+
+Date: 22 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-public-walk-a.
+
+The issuing host listened on 127.0.0.1:18790 only and is stopped after this walk. The verifier is the public check-only host at https://check.prestigeworldwide.digital. That host binds 127.0.0.1:18765 behind nginx. Create Agent Principal stays off that host.
+
+prometheus runtime-check before-tool used base URL https://check.prestigeworldwide.digital. Honest allow printed ALLOWED, exit 0, and ran the tool. File: before-tool-allow.stdout, tool-allow.txt.
+
+After Decommission, POST /kill-accept on the public host returned 200. A following POST /check-svid of the historical Assertion Act returned 403. The reason is accepted kill, not expiry and not a missing inode. File: public-check-svid-after-decommission.json. The tool did not run.
+
+before-tool after local kill cannot collect a new holder signature. The issuing host refuses POST /sign-holder-nonce after revoke. That is fail-closed on the mint side. Death on the public verifier is the check-svid refuse above.
+
+This is not SPIRE. This is not a replica. This is not Sanctum.

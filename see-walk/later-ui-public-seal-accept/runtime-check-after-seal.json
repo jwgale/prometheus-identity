@@ -1,0 +1,15 @@
+{
+  "http_status": 403,
+  "result": "refused",
+  "reason": "The verification failed: This store accepted a seal for this issuer public key. Present verify is refused after seal accept. Seal accept is issuer death for verify. The check fails closed.",
+  "keys": [
+    "audience",
+    "capability_id",
+    "challenge_nonce",
+    "instance_id",
+    "intent",
+    "on_behalf_of",
+    "reason",
+    "result"
+  ]
+}

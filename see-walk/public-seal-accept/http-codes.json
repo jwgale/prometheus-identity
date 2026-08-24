@@ -1,0 +1,18 @@
+{
+  "public_well_known": 200,
+  "issuing_health": 200,
+  "agent_type": 200,
+  "birth": 200,
+  "present_svid": 200,
+  "issuer_accept": 200,
+  "honest_before_tool": 0,
+  "seal": 200,
+  "seal_export": 200,
+  "seal_accept": 200,
+  "historical_check_svid": 403,
+  "historical_before_tool": 1,
+  "stolen_birth": 200,
+  "stolen_present_svid": 200,
+  "stolen_check_svid": 403,
+  "stolen_before_tool": 1
+}

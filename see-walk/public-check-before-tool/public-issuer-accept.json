@@ -1,0 +1,7 @@
+{
+  "result": "accepted",
+  "http_status": 200,
+  "keys": [
+    "public_key_hex"
+  ]
+}

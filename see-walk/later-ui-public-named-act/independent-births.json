@@ -1,0 +1,8 @@
+{
+  "independent_births": true,
+  "first_instance_id": "01M0PTESFF02RW9B6FFPSCGAC9",
+  "second_instance_id": "01M0PTESFQRF1SZ4K1DW89FEWK",
+  "first_parent_instance_id": null,
+  "second_parent_instance_id": null,
+  "note": "Two Create Agent Principal writes. Not parent and child."
+}

@@ -1,0 +1,52 @@
+{
+  "write-verb-kill-export-public": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: The well-known check document does not name that operator pin. The check fails closed.",
+      "result": "refused"
+    }
+  },
+  "write-verb-birth-public": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: The well-known check document does not name that operator pin. The check fails closed.",
+      "result": "refused"
+    }
+  },
+  "missing-pin": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: The well-known check document does not name that operator pin. The check fails closed.",
+      "result": "refused"
+    }
+  },
+  "empty-kill-accept": {
+    "http_status": 400,
+    "body": {
+      "reason": "The request body is not valid JSON: missing field `event` at line 1 column 2",
+      "result": "refused"
+    }
+  },
+  "empty-act-accept-missing-receipt": {
+    "http_status": 400,
+    "body": {
+      "reason": "The request body is not valid JSON: missing field `receipt` at line 1 column 2",
+      "result": "refused"
+    }
+  },
+  "empty-pin-name": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: An operator pin name is required. The check fails closed.",
+      "result": "refused"
+    }
+  },
+  "holder-secret-bytes": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: Holder secret bytes are refused. Type a local holder secret path. Secret bytes are not uploaded. The check fails closed.",
+      "result": "refused"
+    }
+  },
+  "note": "Write-verb pin names, a missing pin, empty accept artifacts, a missing receipt on act-accept, and holder secret bytes stayed refused. No live allow hole."
+}

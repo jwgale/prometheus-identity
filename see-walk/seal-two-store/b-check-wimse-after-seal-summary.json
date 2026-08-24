@@ -1,0 +1,6 @@
+{
+  "result": "refused",
+  "reason": "The verification failed: This store accepted a seal for this issuer public key. Present verify is refused after seal accept. Seal accept is issuer death for verify. The check fails closed.",
+  "intent": "read",
+  "audience": "internal"
+}

@@ -1,0 +1,7 @@
+{
+  "gate": "REFUSED",
+  "exit": 1,
+  "tool_ran": false,
+  "tool_marker": "missing",
+  "reason": "The verification failed: This store accepted a kill for this instance. Present verify is refused after kill accept. Death travels as a kill bundle. The check fails closed."
+}

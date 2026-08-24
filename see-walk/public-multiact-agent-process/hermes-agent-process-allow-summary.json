@@ -1,0 +1,8 @@
+{
+  "gate": "ALLOWED",
+  "pid": "48101",
+  "pid_still_alive": true,
+  "tool_ran": true,
+  "tool_marker": "TOOL_RAN",
+  "on_ramp": "X.509-SVID+WIMSE"
+}

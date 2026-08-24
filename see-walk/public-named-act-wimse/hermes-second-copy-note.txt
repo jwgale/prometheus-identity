@@ -1,0 +1,1 @@
+Copied independent second WIMSE artifacts and second-holder.secret. Did not copy issuer.secret.

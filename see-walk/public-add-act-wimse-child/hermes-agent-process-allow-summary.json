@@ -1,0 +1,8 @@
+{
+  "gate": "ALLOWED",
+  "pid": "65061",
+  "pid_still_alive": true,
+  "tool_ran": true,
+  "tool_marker": "TOOL_RAN",
+  "held_acts": "parent X.509-SVID"
+}

@@ -1,0 +1,14 @@
+{
+  "public_well_known": 200,
+  "issuing_health": 200,
+  "agent_type": 200,
+  "birth": 200,
+  "present_wimse": 200,
+  "issuer_accept": 200,
+  "runtime_check_allow": 200,
+  "kill": 200,
+  "kill_export": 200,
+  "kill_accept": 200,
+  "runtime_check_after_decommission": 403,
+  "historical_check_wimse": 403
+}

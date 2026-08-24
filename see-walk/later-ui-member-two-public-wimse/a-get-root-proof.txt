@@ -1,0 +1,4 @@
+issuing GET / is the later user interface with present-wimse
+listen 127.0.0.1:18836
+html_bytes 91534
+markers Create Agent Principal, id="issuing-member-secret-path", name="member_secret_path", Issuing-store member secret path, after issuance threshold_n is 2, Assertion Act, https://check.prestigeworldwide.digital, id="emit-wimse", workload-identity-token, function submitCheckWimse(, /present-wimse, /check-wimse

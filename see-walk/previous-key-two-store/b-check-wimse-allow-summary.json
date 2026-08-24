@@ -1,0 +1,8 @@
+{
+  "result": "allowed",
+  "intent": "read",
+  "audience": "internal",
+  "reason": null,
+  "challenge_nonce": "01M0FZ5JBCGJECNEH81RADJRSG",
+  "on_behalf_of": "autonomous"
+}

@@ -1,0 +1,10 @@
+Hermes /var/lib/prometheus-agent after the add-act walk
+
+no-issuer-secret
+no-biscuit-secret
+holder.secret mode=600
+child-holder.secret mode=600
+prometheus binary present
+parent presentation.json and presentation.json.svid.pem present
+child-presentation.json and child-presentation.json.svid.pem present
+This listing does not contain secret bytes.

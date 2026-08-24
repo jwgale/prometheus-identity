@@ -1,0 +1,17 @@
+HTTP 200
+headings:
+<h2>Status</h2>
+<h2>Create Agent Principal</h2>
+<h2>Spawn</h2>
+<h2>Assertion Act</h2>
+<h2>Check</h2>
+<h2>Decommission</h2>
+<h2>Verifier</h2>
+Create Agent Principal: yes
+Assertion Act: yes
+Decommission: yes
+h2 Birth: no
+h2 Death: no
+h2 Check: yes
+bind 127.0.0.1: yes
+public listener refuse: yes

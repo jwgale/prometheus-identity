@@ -1,0 +1,15 @@
+{
+  "keys": [
+    "check_base",
+    "content_digest",
+    "holder_secret_path",
+    "presentation_json",
+    "signature",
+    "signature_input",
+    "workload_identity_token"
+  ],
+  "check_base": "https://check.prestigeworldwide.digital",
+  "holder_secret_path_sent_to_issuing_host": true,
+  "holder_secret_bytes_sent_to_public_name": false,
+  "note": "GET /laboratory Check and Check again post this WIMSE JSON to the loopback issuing host. That host signs the verifier nonce locally. Secret bytes are not uploaded. The path is not sent to the public name. WIMSE token, digest, and signature fields are not trimmed."
+}

@@ -1,0 +1,9 @@
+total 10204
+-rw------- 1 ubuntu ubuntu       64 Aug 22 20:45 holder.secret
+-rw-r--r-- 1 ubuntu ubuntu    11248 Aug 22 20:45 presentation.json
+-rw-r--r-- 1 ubuntu ubuntu      485 Aug 22 20:45 presentation.json.svid.pem
+-rwxr-xr-x 1 ubuntu ubuntu 10426512 Aug 22 20:45 prometheus
+---
+no-issuer-secret no-biscuit-secret
+holder.secret mode=600
+no-parent-holder-secret

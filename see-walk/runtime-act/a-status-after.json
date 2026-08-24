@@ -1,0 +1,19 @@
+{
+  "crypto_profile": "lab-ml-dsa-65-hybrid-biscuit-ed25519",
+  "current_issuer_public_key_hex": "159d9e26...50dfd0a3",
+  "current_issuer_public_key_hexadecimal_length": 3904,
+  "honest_line": "The identity root is Module-Lattice Digital Signature Algorithm 65. The Biscuit envelope is laboratory Ed25519 and is not a threshold member.",
+  "threshold_n": 1,
+  "verify_threshold_n": 1,
+  "member_count": 1,
+  "sealed": false,
+  "kill_date": null,
+  "agent_type_count": 1,
+  "instance_live_count": 0,
+  "instance_revoked_count": 1,
+  "capability_count": 1,
+  "chain_count": 1,
+  "issuance_log_leaf_count": 5,
+  "issuance_log_merkle_root": "221d1b24f29cdece7a21d1b97c39a0dabf828ed9b5b8a335c5d81c2a7af938a8",
+  "check_host_bind": "127.0.0.1 only"
+}

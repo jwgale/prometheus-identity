@@ -1,0 +1,18 @@
+{
+  "http_status": 200,
+  "result": "allowed",
+  "receipt_keys": [
+    "audience",
+    "capability_id",
+    "challenge_nonce",
+    "instance_id",
+    "intent",
+    "issuance_log_line",
+    "issued",
+    "on_behalf_of",
+    "result",
+    "signature"
+  ],
+  "receipt_result": "allowed",
+  "note": "The public host already allowed this WIMSE act. The issuing store also checked so the receipt stays on the issuing store. Public act-export stays 403."
+}

@@ -1,0 +1,10 @@
+{
+  "first": [
+    "certificate_pem",
+    "presentation_json"
+  ],
+  "second": [
+    "certificate_pem",
+    "presentation_json"
+  ]
+}

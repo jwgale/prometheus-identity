@@ -1,0 +1,6 @@
+{
+  "instance_id": "01M0K658AMW435S0084JVDEXEB",
+  "capability_id": "01M0K658AMV0D5NFM07DX3K7ST",
+  "holder_secret_path": "/tmp/prometheus-later-ui-spawn/holders/01M0K658AMW435S0084JVDEXEB.secret",
+  "revoke_identifier": "65eb8527e1aa0df6d1f88f750082454a27cbca49552b7b4d57e561242da87119956ec95ca629f6c4d3a9f6423841fdf9bcdfb80b310e1a0c5c902b5c2ab4dc0b"
+}

@@ -1,0 +1,5 @@
+issuing GET / is the later user interface
+listen 127.0.0.1:18805
+content_type text/html; charset=utf-8
+html_bytes 89489
+markers id="check-base", name="check_base", https://check.prestigeworldwide.digital, Create Agent Principal, /runtime-check, The holder secret path stays on this host, POST /runtime-check signs the verifier nonce here, The path is not sent to the check base, Check again

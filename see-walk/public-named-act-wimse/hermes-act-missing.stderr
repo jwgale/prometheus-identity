@@ -1,0 +1,5 @@
+The verification failed: This store accepted a kill for this instance. Present verify is refused after kill accept. Death travels as a kill bundle. The check fails closed.
+The verification failed: This store accepted a kill for this instance. Present verify is refused after kill accept. Death travels as a kill bundle. The check fails closed.
+The verification failed: The Workload Identity Token has expired. Now is at or after exp. Short token life is not kill. The check fails closed.
+The verification failed: The act line must name a held Assertion Act. Act numbers start at 1. The check fails closed.
+The verification failed: The act line needs a held Assertion Act number. The check fails closed.

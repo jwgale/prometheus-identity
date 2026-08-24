@@ -1,0 +1,21 @@
+{
+  "public_well_known": 200,
+  "issuing_health": 200,
+  "agent_type": 200,
+  "birth": 200,
+  "present_svid": 200,
+  "issuer_accept": 200,
+  "runtime_check_allow": 200,
+  "rotate": 200,
+  "previous_key_export": 200,
+  "previous_key_accept": 200,
+  "runtime_check_after_previous_key": 403,
+  "historical_check_svid": 403,
+  "current_issuer_accept": 200,
+  "current_present_svid": 200,
+  "runtime_check_current": 200,
+  "stolen_birth": 200,
+  "stolen_present_svid": 200,
+  "stolen_runtime_check": 403,
+  "stolen_check_svid": 403
+}

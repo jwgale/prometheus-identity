@@ -1,0 +1,5 @@
+store_b_issuance_log_bytes=0
+store_b_instance_json_count=0
+store_b_capability_json_count=0
+store_b_did_not_mint=yes
+store_b_has_no_instance_records=yes

@@ -1,0 +1,5 @@
+issuing GET / is the later user interface
+listen 127.0.0.1:18838
+html_bytes 91534
+title Prometheus later user interface
+GET /laboratory is a different page

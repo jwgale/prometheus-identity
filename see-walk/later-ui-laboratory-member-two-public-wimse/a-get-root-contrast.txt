@@ -1,0 +1,1 @@
+GET / is a different page from GET /laboratory. later UI markers present=True pages_differ=True

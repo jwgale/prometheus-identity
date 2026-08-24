@@ -1,0 +1,15 @@
+Agent process on hostname 5090 with remote member-two public allow then refuse
+
+Date: 23 August 2026 20:20 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-member-two-agent-process-20260823 and was shredded after this walk.
+
+Create Agent Principal ran on the operator machine and bound 127.0.0.1:18846 only. The X.509-SVID Assertion Act was minted on that issuing store with member_secret_path on the SSHFS mount of ubuntu@10.43.1.186:/home/ubuntu/member-two-custody. The durable agent process ran on hostname 5090. The process did not run on Hermes. The verifier is https://check.prestigeworldwide.digital. AgentProcess is not a store. LaboratoryRuntime still refuses --holder-secret-path. Holder-sign ran locally.
+
+POST /member-two wrote member two through that mount. Secret bytes were not returned. The standing laptop member-two.secret was not copied. issuer.secret stayed on the issuing computer. POST /set-issuer-threshold set threshold_n to 2 on this throwaway issuer only. POST /birth without member_secret_path returned 403. POST /birth and POST /present-svid with the remote path returned 200 and two issuer member signatures.
+
+POST /issuer-accept pinned this throwaway public key only. prometheus runtime-check agent-process stayed up as process identifier 3559917. The first tool line printed ALLOWED and ran the tool. After Decommission, POST /kill-export, and public POST /kill-accept, a second tool line on that same process identifier printed REFUSED because this store accepted a kill, not because of expiry. The tool did not run. The process did not restart. ALLOWED is not cached.
+
+The throwaway store was shredded. The VPC custody directory was left in place. Standing data-a threshold_n stayed 1. VPC issuer.secret count stayed 0. Rust was not changed.
+
+This is not a public listener for birth. This is not SPIRE. This is not a replica. This is not a sixth identity record. This is not Sanctum.

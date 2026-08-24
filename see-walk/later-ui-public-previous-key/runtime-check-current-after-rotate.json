@@ -1,0 +1,6 @@
+{
+  "http_status": 200,
+  "result": "allowed",
+  "reason": null,
+  "note": "Rotate is not seal. A present signed by the current issuer key still allows."
+}

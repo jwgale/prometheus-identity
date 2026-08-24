@@ -1,0 +1,9 @@
+{
+  "result": "refused",
+  "instance_id": "01M0FGSDEZ9RP3KDYXA4VY3J1Q",
+  "capability_id": "01M0FGSDEZMDSM197RRSQ0VXM8",
+  "intent": "read",
+  "audience": "internal",
+  "reason": "The verification failed: This store's own records say this instance is revoked. Present verify is refused after local kill. Death on the issuing store does not require a kill-accept bundle. The check fails closed.",
+  "has_receipt": false
+}

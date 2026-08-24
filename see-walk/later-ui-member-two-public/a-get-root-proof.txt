@@ -1,0 +1,5 @@
+issuing GET / is the later user interface
+listen 127.0.0.1:18834
+content_type text/html; charset=utf-8
+html_bytes 91534
+markers Create Agent Principal, id="issuing-member-secret-path", name="member_secret_path", Issuing-store member secret path, after issuance threshold_n is 2, Assertion Act, https://check.prestigeworldwide.digital

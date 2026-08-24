@@ -1,0 +1,11 @@
+{
+  "instance_id": "01M0NKH90Q8VRXETQKNQKD2GGD",
+  "capability_id": "01M0NKH90QS4V2806D3NY1DPE5",
+  "holder_secret_path_present": true,
+  "holder_secret_path_is_child": true,
+  "response_keys": [
+    "capability_id",
+    "holder_secret_path",
+    "instance_id"
+  ]
+}

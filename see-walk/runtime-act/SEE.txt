@@ -1,0 +1,11 @@
+Laboratory runtime act walk files
+
+Date: 21 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts from the laboratory runtime act two-store death walk. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The two stores lived under /tmp/prometheus-runtime-act-a and /tmp/prometheus-runtime-act-b.
+
+Store A listened on 127.0.0.1:18777. Store B listened on 127.0.0.1:18778. Both hosts bind 127.0.0.1 only. Both hosts are stopped.
+
+The documented command is prometheus runtime-check act. One process connected to Store B, followed GET /.well-known/prometheus-check, requested a verifier challenge, and posted the documented X.509-SVID check with a caller-supplied holder signature. Store B never received a holder secret path. Sign stayed on Store A. Store B wrote no instance record. After kill accept the same verb on the historical present exited non-zero. Death wins.
+
+See ANSWERS.md in this folder.

@@ -1,0 +1,5 @@
+{
+  "http_status": 403,
+  "result": "refused",
+  "reason": "After issuance threshold_n is 2, the birth path requires member_secret_path. The host reads a local outside path. A live host that already registered member two still requires that path on this birth body. Secret bytes are not uploaded. The check fails closed."
+}

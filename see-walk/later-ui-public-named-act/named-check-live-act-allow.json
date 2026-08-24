@@ -1,0 +1,18 @@
+{
+  "http_status": 200,
+  "result": "allowed",
+  "reason": null,
+  "act": 2,
+  "same_present": false,
+  "cached_allowed": false,
+  "keys": [
+    "audience",
+    "capability_id",
+    "challenge_nonce",
+    "instance_id",
+    "intent",
+    "on_behalf_of",
+    "reason",
+    "result"
+  ]
+}

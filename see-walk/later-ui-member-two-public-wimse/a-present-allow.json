@@ -1,0 +1,19 @@
+{
+  "http_status": 200,
+  "has_presentation_json": true,
+  "has_workload_identity_token": true,
+  "has_content_digest": true,
+  "has_signature_input": true,
+  "has_signature": true,
+  "intent": "read",
+  "audience": "check.prestigeworldwide.digital",
+  "issuer_signature_count": 2,
+  "response_keys": [
+    "content_digest",
+    "presentation_json",
+    "signature",
+    "signature_input",
+    "workload_identity_token"
+  ],
+  "secret_bytes_returned": false
+}

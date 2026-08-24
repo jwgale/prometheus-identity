@@ -1,0 +1,1 @@
+init ran on hostname 5090. Secret files stay under /tmp/prometheus-later-ui-laboratory-member-two-public-wimse-20260823. The standing issuer was not used.

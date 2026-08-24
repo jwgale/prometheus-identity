@@ -1,0 +1,8 @@
+{
+  "threshold_n": 2,
+  "member_count": 2,
+  "instance_live_count": 1,
+  "instance_revoked_count": 0,
+  "sealed": false,
+  "check_host_bind": "127.0.0.1 only"
+}

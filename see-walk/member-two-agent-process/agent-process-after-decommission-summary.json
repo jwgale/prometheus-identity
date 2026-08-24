@@ -1,0 +1,11 @@
+{
+  "gate": "REFUSED",
+  "pid": "3559917",
+  "same_pid": true,
+  "restarted": false,
+  "tool_ran": false,
+  "tool_marker": "missing",
+  "on_ramp": "X.509-SVID",
+  "hostname": "5090",
+  "reason": "this store accepted a kill"
+}

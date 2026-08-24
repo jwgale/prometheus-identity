@@ -1,0 +1,9 @@
+total 10236
+-rw------- 1 ubuntu ubuntu       64 Aug 23 04:29 holder.secret
+-rw-r--r-- 1 ubuntu ubuntu    11106 Aug 23 04:29 presentation.json
+-rw-r--r-- 1 ubuntu ubuntu      485 Aug 23 04:29 presentation.json.svid.pem
+-rwxr-xr-x 1 ubuntu ubuntu 10456160 Aug 23 04:29 prometheus
+-rw-rw-r-- 1 ubuntu ubuntu        9 Aug 22 20:45 tool-allow.txt
+---
+no-issuer-secret no-biscuit-secret
+holder.secret mode=600

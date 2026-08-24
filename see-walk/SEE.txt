@@ -1,0 +1,35 @@
+SEE walk files
+
+Date: 19 August 2026.
+
+This folder is for Jason Gale. These files are non-secret records and artifacts from one provision walk. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets.
+
+agent-type.json
+This file is the agent type record. This record is the class.
+
+parent-instance.json
+This file is the parent instance record. Birth wrote this instance as the born act. Status is revoked after kill.
+
+child-instance.json
+This file is the child instance record. Spawn wrote this narrower child act. Status is revoked after the parent kill cascade.
+
+capability.json
+This file is the parent capability record. Birth wrote this first capability with the parent instance.
+
+parent-presentation.json
+This file is a signed presentation document. Present is a document. Present is not a name.
+
+receipt.json
+This file is the signed decision receipt for the allowed parent tool act.
+
+event.json
+This file is the kill event. This artifact records death. The signed cascade carries the parent identifier and the child identifier.
+
+status-a.txt
+This file is the store A status output. Status does not print secrets.
+
+parent-x509-svid.json
+This file is the inner presentation document of the laboratory X.509-SVID wrap.
+
+parent-x509-svid.pem
+This file is the laboratory X.509-SVID wrap. The Uniform Resource Identifier names the presentation. This is not a secret.

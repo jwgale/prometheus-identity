@@ -1,0 +1,7 @@
+{
+  "check_base": "https://check.prestigeworldwide.digital",
+  "kill_accept_pin_name": "kill-accept",
+  "kill_accept_path": "/kill-accept",
+  "issuer_accept_path": "/issuer-accept",
+  "note": "GET /laboratory resolves these paths from the well-known document. POST /operator-pin then posts that pin name. This walk does not hardcode public /kill-accept as the accept URL."
+}

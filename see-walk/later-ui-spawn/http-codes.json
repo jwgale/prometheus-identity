@@ -1,0 +1,21 @@
+{
+  "GET /": 200,
+  "GET /health": 200,
+  "GET /instances before": 200,
+  "POST /agent-type": 200,
+  "POST /birth": 200,
+  "POST /challenge wider": 200,
+  "POST /spawn wider": 403,
+  "GET /instances after wider": 200,
+  "POST /challenge spawn": 200,
+  "POST /spawn": 200,
+  "GET /instances after spawn": 200,
+  "POST /challenge present": 200,
+  "POST /present-svid": 200,
+  "POST /challenge check": 200,
+  "POST /check-svid allow": 200,
+  "POST /kill": 200,
+  "POST /check-svid after kill": 403,
+  "GET /instances after kill": 200,
+  "GET /status after": 200
+}

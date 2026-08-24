@@ -1,0 +1,21 @@
+Public well-known operator-pin honesty walk
+
+Date: 23 August 2026.
+
+This folder is for Jason Gale. These files are public records. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets.
+
+Live POST on https://check.prestigeworldwide.digital of an empty JSON body:
+
+- POST /issuer-accept returned HTTP 400 missing field public_key_hex. That is not check-only 403.
+- POST /kill-accept returned HTTP 400 missing field event. That is not check-only 403.
+- POST /act-accept returned HTTP 400 missing field receipt. That is not check-only 403.
+- POST /seal-accept returned HTTP 400 missing field event. That is not check-only 403.
+- POST /previous-key-accept returned HTTP 400 missing field public_key_hex. That is not check-only 403.
+- POST /verifier-challenge returned HTTP 200 with a challenge nonce.
+- POST /birth, POST /spawn, POST /present-svid, POST /present-wimse, POST /seal-export, POST /previous-key-export, POST /act-export, POST /rotate, POST /kill, POST /seal, and POST /runtime-check returned HTTP 403 check-only.
+
+GET https://check.prestigeworldwide.digital/.well-known/prometheus-check returned HTTP 200. The published document names bind check.prestigeworldwide.digital. checks[] names POST /check-svid and POST /check-wimse. verifier-challenge stays a named discovery field. operator_pin_paths names POST /issuer-accept, POST /kill-accept, POST /seal-accept, POST /previous-key-accept, and POST /act-accept. Those pins are not in checks[]. The published document does not name Create Agent Principal, spawn, Assertion Act mint, Decommission write, seal, rotate, runtime-check, or export write verbs.
+
+The public check-only process was restarted with the current Ubuntu binary at process identifier 24205. The binary is /usr/local/bin/prometheus. issuer.secret was not copied onto the public host. File: live-prometheus-check.json.
+
+This is not SPIRE. This is not a replica. This is not a public listener for birth. This is not Sanctum.

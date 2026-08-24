@@ -1,0 +1,19 @@
+total 10304
+prw------- 1 ubuntu ubuntu        0 Aug 23 04:49 agent-process.in
+-rw-rw-r-- 1 ubuntu ubuntu        6 Aug 23 04:49 agent-process.pid
+-rw-rw-r-- 1 ubuntu ubuntu      336 Aug 23 04:49 agent-process.stderr
+-rw-rw-r-- 1 ubuntu ubuntu        8 Aug 23 04:49 agent-process.stdout
+-rw-r--r-- 1 ubuntu ubuntu       54 Aug 23 04:51 content_digest
+-rw-rw-r-- 1 ubuntu ubuntu        6 Aug 23 04:49 fifo-keeper.pid
+-rwxr-xr-x 1 ubuntu ubuntu     1596 Aug 23 04:51 hermes-start-wimse-agent-process.sh
+-rw------- 1 ubuntu ubuntu       64 Aug 23 04:51 holder.secret
+-rw-r--r-- 1 ubuntu ubuntu    11106 Aug 23 04:51 presentation.json
+-rw-r--r-- 1 ubuntu ubuntu      485 Aug 23 04:51 presentation.json.svid.pem
+-rw-r--r-- 1 ubuntu ubuntu    11106 Aug 23 04:51 presentation.svid.json
+-rwxr-xr-x 1 ubuntu ubuntu 10475144 Aug 23 04:50 prometheus
+-rw-r--r-- 1 ubuntu ubuntu       94 Aug 23 04:51 signature
+-rw-r--r-- 1 ubuntu ubuntu       50 Aug 23 04:51 signature_input
+-rw-r--r-- 1 ubuntu ubuntu      520 Aug 23 04:51 workload_identity_token
+---
+no-issuer-secret no-biscuit-secret
+holder.secret mode=600

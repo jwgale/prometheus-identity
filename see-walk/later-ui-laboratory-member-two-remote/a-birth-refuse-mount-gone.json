@@ -1,0 +1,4 @@
+{
+  "http_status": 403,
+  "reason": "The verification failed: The threshold_n value is 2 but only 1 issuer member secret is present. Mint, birth, spawn, and save-sign refuse when only one secret is present and threshold_n is 2. The check fails closed."
+}

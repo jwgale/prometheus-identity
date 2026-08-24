@@ -1,0 +1,15 @@
+{
+  "http_status": 403,
+  "result": "refused",
+  "reason": "The verification failed: The previous issuer key is past its kill date. A present signed only by that previous key is refused. The check fails closed.",
+  "keys": [
+    "audience",
+    "capability_id",
+    "challenge_nonce",
+    "instance_id",
+    "intent",
+    "on_behalf_of",
+    "reason",
+    "result"
+  ]
+}

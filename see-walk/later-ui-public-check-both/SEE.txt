@@ -1,0 +1,25 @@
+Later user interface public Check both walk
+
+Date: 23 August 2026 03:05 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The throwaway issuing store lived under /tmp/prometheus-later-ui-public-check-both-a and was deleted after this walk.
+
+The issuing host listened on 127.0.0.1:18826 only and is stopped after this walk. GET / on that host is the later user interface. Check both already posts POST /runtime-check once per present. The page types a check base. The accepted public base is https://check.prestigeworldwide.digital.
+
+The walk used the same HTTP JSON that GET / Check both posts. The walk did not use prometheus CLI check verbs. The walk did not spawn AgentProcess.
+
+Create Agent Principal stayed on 127.0.0.1. POST /spawn wrote a narrower child. Parent audience is check.prestigeworldwide.digital. Child audience is check.prestigeworldwide.digital/child. The child instance identifier is not the parent.
+
+POST /well-known-follow of the public check base resolved issuer-accept and kill-accept from operator_pin_paths. POST /operator-pin issuer-accept on the issuing host returned 200. This throwaway issuer was not already pinned. issuer.secret was not copied onto the public host. The walk did not hardcode public /kill-accept as the accept URL.
+
+POST /runtime-check on the loopback issuing host with check_base https://check.prestigeworldwide.digital allowed the parent present. A second POST /runtime-check allowed the child present. Check both is ALLOWED only if both allow. ALLOWED was not stored. Each post hit the host. The holder secret path stayed on the issuing host. Secret bytes were not sent to the public name.
+
+After parent Decommission, POST /kill-export on the issuing host returned the three public artifacts. POST /operator-pin kill-accept returned 200. The accepted kill list includes the parent instance and the child instance. A following Check both of those same presents returned 403 for both host hits. The reason is accepted kill, not expiry and not a missing inode. A named check of the child also returned 403 because this store accepted a kill cascade.
+
+A following POST /check-svid of that same historical child Assertion Act on the public host also returned 403 because this store accepted a kill.
+
+Live GET https://check.prestigeworldwide.digital stayed check-only JSON. Live POST /runtime-check, POST /operator-pin, and POST /well-known-follow on that name stayed 403.
+
+This walk did not change rust. Check both JavaScript already posts once per present. GET /laboratory Check both was not invented. SVID plus WIMSE Check both pairings were not added on the public name.
+
+This is not SPIRE. This is not a replica. This is not Sanctum.

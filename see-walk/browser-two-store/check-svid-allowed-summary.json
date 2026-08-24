@@ -1,0 +1,8 @@
+{
+  "result": "allowed",
+  "instance_id": "01M0FVF417VJBS4CP2JX374VMG",
+  "capability_id": "01M0FVF418W3GFJGTYQCKKN8C8",
+  "intent": "read",
+  "audience": "internal",
+  "on_behalf_of": "autonomous"
+}

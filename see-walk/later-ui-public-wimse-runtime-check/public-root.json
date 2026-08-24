@@ -1,0 +1,6 @@
+{
+  "bind": "check.prestigeworldwide.digital",
+  "refuses_other_interfaces": true,
+  "role": "check-only",
+  "status": "live"
+}

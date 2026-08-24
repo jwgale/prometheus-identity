@@ -1,0 +1,11 @@
+{
+  "keys": [
+    "audience",
+    "certificate_pem",
+    "challenge_nonce",
+    "holder_secret_path",
+    "intent",
+    "on_behalf_of",
+    "presentation_json"
+  ]
+}

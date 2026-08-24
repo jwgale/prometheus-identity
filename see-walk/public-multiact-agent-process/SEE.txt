@@ -1,0 +1,11 @@
+Public multi-act SVID and WIMSE durable agent process walk
+
+Date: 22 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-public-multiact-a.
+
+Create Agent Principal ran on the operator machine and bound 127.0.0.1 only. The issuing store minted a laboratory X.509-SVID wrap and a WIMSE Assertion Act for the same instance. The durable agent process ran on Hermes at 52.91.253.34. The verifier is https://check.prestigeworldwide.digital. Hermes held both on-ramp artifacts and the holder key. Hermes did not hold issuer.secret. Hermes is not a second identity store.
+
+prometheus runtime-check agent-process on Hermes held both on-ramp Assertion Acts, used holder-sign on that machine, and the public check name. The process stayed up. One tool line printed ALLOWED only after both documented checks allowed, and then ran the tool. After Decommission by kill accept, a second tool line on the same process identifier printed REFUSED and did not run the tool. Death wins on every held act. The refuse names accepted kill. The process did not restart.
+
+This is not SPIRE. This is not a replica. This is not a public listener for birth. This is not Sanctum.

@@ -1,0 +1,14 @@
+{
+  "instance_id": "01M0NKH90Q8VRXETQKNQKD2GGD",
+  "capability_id": "01M0NKH90QS4V2806D3NY1DPE5",
+  "intent": "read",
+  "audience": "check.prestigeworldwide.digital/child",
+  "ancestor_instance_ids": [
+    "01M0NKH90B6JKAECRJ9XKBMG7K"
+  ],
+  "ancestor_capability_ids": [
+    "01M0NKH90CPR0Z64PRNBQ4482T"
+  ],
+  "presented_at": "2026-08-22T20:45:33Z",
+  "expires_at": "2026-08-22T20:46:33Z"
+}

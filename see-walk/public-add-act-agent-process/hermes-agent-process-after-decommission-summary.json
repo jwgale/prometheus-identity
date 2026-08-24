@@ -1,0 +1,9 @@
+{
+  "gate": "REFUSED",
+  "pid": "57668",
+  "same_pid": true,
+  "tool_ran": false,
+  "tool_marker": "missing",
+  "held_acts": "parent X.509-SVID + child X.509-SVID",
+  "reason": "The verification failed: This store accepted a kill for this instance. Present verify is refused after kill accept. Death travels as a kill bundle. The check fails closed."
+}

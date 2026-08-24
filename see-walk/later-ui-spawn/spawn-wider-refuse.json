@@ -1,0 +1,4 @@
+{
+  "reason": "The child audience 'internal' exceeds the parent audience 'internal/prod'. A child cannot gain rights that the parent does not have.",
+  "result": "refused"
+}

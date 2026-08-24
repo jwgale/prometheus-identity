@@ -1,0 +1,1 @@
+Copied the issuing store to /tmp/prometheus-public-seal-stolen after the honest Assertion Act and before local seal. That copy stays under /tmp. This folder does not hold issuer.secret, biscuit.secret, holder secrets, or member-two secrets.

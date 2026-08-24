@@ -1,0 +1,19 @@
+Laboratory operator page remote member-secret path
+
+Date: 23 August 2026 17:59 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-later-ui-laboratory-member-two-remote-20260823 and was shredded after this walk.
+
+GET /laboratory on 127.0.0.1:18838 is the laboratory operator page. The title is Prometheus loopback operator page. GET / on the same host is the later user interface and is a different page. The laboratory page has the member secret path field. The walk used the same HTTP JSON that GET /laboratory posts. Init stayed on the command line. Host start was a listen command. The walk did not use prometheus CLI birth, present, or check verbs after the host was up. The walk did not spawn AgentProcess.
+
+POST /member-two wrote member two through an SSHFS mount of ubuntu@10.43.1.186:/home/ubuntu/member-two-custody. Secret bytes were not returned. The standing laptop member-two.secret was not copied. issuer.secret stayed on the issuing computer. POST /set-issuer-threshold set threshold_n to 2 on this throwaway issuer only.
+
+POST /birth without member_secret_path returned 403 and named that required path.
+
+After fusermount, POST /birth with that remote path returned 403 because threshold_n is 2 but only 1 issuer member secret is present.
+
+After remount, POST /birth with the remote path returned 200. POST /challenge and POST /present-svid with the same remote path returned 200. The Assertion Act carried two issuer member signatures.
+
+The standing issuer was not used. Standing data-a threshold_n stayed 1. The laptop member-two.secret mtime stayed 19 August 2026 12:24 CDT. VPC issuer.secret count stayed 0. Rust was not changed. Public check of this present was not done. That public twin is next.
+
+This is not a public listener for birth. This is not SPIRE. This is not a replica. This is not a sixth identity record. This is not Sanctum.

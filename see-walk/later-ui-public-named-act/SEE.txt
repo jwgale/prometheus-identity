@@ -1,0 +1,21 @@
+Later user interface public named act walk
+
+Date: 23 August 2026 03:06 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The throwaway issuing store lived under /tmp/prometheus-later-ui-public-named-act-a and was deleted after this walk.
+
+The issuing host listened on 127.0.0.1:18828 only and is stopped after this walk. GET / on that host is the later user interface. Check both posts POST /runtime-check once per present. A named check posts that same JSON for one held act. The accepted public base is https://check.prestigeworldwide.digital.
+
+The walk used the same HTTP JSON that GET / Check both and Check this act only post. The walk did not use prometheus CLI check verbs. The walk did not spawn AgentProcess.
+
+Two Create Agent Principal writes stayed on 127.0.0.1. Those writes are independent. They are not parent and child. POST /well-known-follow of the public check base resolved issuer-accept and kill-accept from operator_pin_paths. POST /operator-pin issuer-accept on the issuing host returned 200. issuer.secret was not copied onto the public host. The walk did not hardcode public /kill-accept as the accept URL.
+
+POST /runtime-check on the loopback issuing host with check_base https://check.prestigeworldwide.digital allowed the first present. A second POST /runtime-check allowed the second present. Check both is ALLOWED only if both allow. ALLOWED was not stored. Each post hit the host. The holder secret path stayed on the issuing host. Secret bytes were not sent to the public name.
+
+After Decommission of the first instance, POST /kill-export on the issuing host returned the three public artifacts. POST /operator-pin kill-accept returned 200. The accepted kill list includes the first instance and does not include the second instance. A following Check both returned 403 for the first host hit and 200 for the second. Check both is not ALLOWED. A named check of the live second act returned 200 allowed. A named check of the first act returned 403 because this store accepted a kill, not because of expiry and not because of a cascade.
+
+Live GET https://check.prestigeworldwide.digital stayed check-only JSON. Live POST /runtime-check, POST /operator-pin, and POST /well-known-follow on that name stayed 403.
+
+This walk did not change rust. Named-check JavaScript already posts one held act. GET /laboratory Check both was not invented. SVID plus WIMSE Check both pairings were not added on the public name.
+
+This is not SPIRE. This is not a replica. This is not Sanctum.

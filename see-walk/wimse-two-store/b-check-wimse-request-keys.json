@@ -1,0 +1,14 @@
+{
+  "keys": [
+    "audience",
+    "challenge_nonce",
+    "content_digest",
+    "holder_proof",
+    "intent",
+    "on_behalf_of",
+    "presentation_json",
+    "signature",
+    "signature_input",
+    "workload_identity_token"
+  ]
+}

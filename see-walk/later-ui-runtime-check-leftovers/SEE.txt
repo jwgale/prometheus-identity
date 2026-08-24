@@ -1,0 +1,25 @@
+Prometheus later-UI runtime-check leftover walk
+Date: 23 August 2026 01:06 America/Chicago
+
+This walk is public artifacts only. This walk does not hold issuer.secret, biscuit.secret, holder secrets, or member-two secrets.
+
+Live public check-only host: https://check.prestigeworldwide.digital
+
+GET /
+HTTP/1.1 200
+Content-Type: application/json
+{"bind":"check.prestigeworldwide.digital","refuses_other_interfaces":true,"role":"check-only","status":"live"}
+
+POST /runtime-check
+HTTP/1.1 403
+{"reason":"The verification failed: This host is check-only. Create Agent Principal and mint paths are refused. The check fails closed.","result":"refused"}
+
+GET /.well-known/prometheus-check
+bind check.prestigeworldwide.digital
+checks POST /check-svid and POST /check-wimse
+does not name POST /runtime-check
+does not name Create Agent Principal, spawn, or Assertion Act mint
+
+Laboratory tests locked the same refuse for www.prestigeworldwide.digital, the apex, port 8443, a trailing-slash www variant, and HTTP to the public name with a port. GET / JavaScript does not fetch this public name. WIMSE typed-base Check again allow-then-refuse is a laboratory test against Store B, not a public mint.
+
+This is not Sanctum.

@@ -1,0 +1,7 @@
+{
+  "http_status": 200,
+  "has_challenge_nonce": true,
+  "response_keys": [
+    "challenge_nonce"
+  ]
+}

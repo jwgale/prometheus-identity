@@ -1,0 +1,7 @@
+{
+  "http_status": 200,
+  "agent_type_id": "01M0R7S09FPQQ65RMXMXFW1CD6",
+  "allowed_intents": [
+    "read"
+  ]
+}

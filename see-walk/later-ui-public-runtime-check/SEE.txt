@@ -1,0 +1,21 @@
+Later user interface public typed-base Check walk
+
+Date: 23 August 2026 01:33 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-later-ui-public-runtime-check-a.
+
+The issuing host listened on 127.0.0.1:18805 only and is stopped after this walk. GET / on that host is the later user interface. The page types a check base. The accepted public base is https://check.prestigeworldwide.digital.
+
+The walk used the same HTTP JSON that GET / posts. The walk did not use prometheus CLI check verbs. The walk did not spawn AgentProcess.
+
+Create Agent Principal stayed on 127.0.0.1. POST /issuer-accept on the public host returned 200. This throwaway issuer was not already pinned. issuer.secret was not copied onto the public host.
+
+POST /runtime-check on the loopback issuing host with check_base https://check.prestigeworldwide.digital allowed. The holder secret path stayed on the issuing host. Secret bytes were not sent to the public name.
+
+After Decommission, POST /kill-export on the issuing host returned the three public artifacts. POST /kill-accept on the public host returned 200. A following POST /runtime-check of the same present returned 403. The reason is accepted kill, not expiry and not a missing inode.
+
+A following POST /check-svid of that same historical Assertion Act on the public host also returned 403 because this store accepted a kill.
+
+Live GET https://check.prestigeworldwide.digital stayed check-only JSON. Live POST /runtime-check on that name stayed 403.
+
+This is not SPIRE. This is not a replica. This is not Sanctum.

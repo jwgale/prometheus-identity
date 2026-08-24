@@ -1,0 +1,17 @@
+Laboratory operator page remote member-secret path public allow then refuse
+
+Date: 23 August 2026 18:35 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-r102-lab-public-20260823 and was shredded after this walk.
+
+GET /laboratory on 127.0.0.1:18842 is the laboratory operator page. The title is Prometheus loopback operator page. GET / on the same host is the later user interface and is a different page. The walk used the same HTTP JSON that GET /laboratory posts. Init stayed on the command line. Host start was a listen command. The walk did not spawn AgentProcess.
+
+POST /member-two wrote member two through an SSHFS mount of ubuntu@10.43.1.186:/home/ubuntu/member-two-custody. POST /set-issuer-threshold set threshold_n to 2 on this throwaway issuer only. The standing laptop member-two.secret was not copied. issuer.secret stayed on the issuing computer. Standing data-a threshold_n stayed 1.
+
+POST /birth without member_secret_path returned 403. POST /birth with the remote path returned 200. POST /challenge and POST /present-svid with the same remote path returned 200. The Assertion Act carried two issuer member signatures.
+
+POST /issuer-accept on https://check.prestigeworldwide.digital pinned only this throwaway public key. Holder-sign ran locally. POST /check-svid allowed. After Decommission and POST /kill-export with member_secret_path, POST /kill-accept on that public name returned 200 and listed instance 01M0RFDA4ZZGXRZ0X7XDDV89GD. The same historical Assertion Act then refused because this store accepted a kill, not because of expiry.
+
+The throwaway store was shredded. The VPC custody directory was left in place. Mount listing showed member-two.secret only. issuer.secret was not on the mount. Direct SSH count from this shell was refused (publickey). Check host GET /health stayed 200 live. Rust was not changed.
+
+This is not a public listener for birth. This is not SPIRE. This is not a replica. This is not a sixth identity record. This is not Sanctum.

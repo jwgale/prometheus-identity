@@ -1,0 +1,11 @@
+{
+  "keys": [
+    "audience",
+    "capability_id",
+    "challenge_nonce",
+    "holder_secret_path",
+    "instance_id",
+    "intent",
+    "on_behalf_of"
+  ]
+}

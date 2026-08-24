@@ -1,0 +1,11 @@
+Hermes child cascade walk
+
+Date: 22 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-hermes-child-cascade.
+
+Create Agent Principal ran on the operator machine and bound 127.0.0.1 only. Spawn wrote a narrower child. Spawn is not a role catalog. A wider child was refused. The child Assertion Act ran on Hermes at 52.91.253.34. The verifier is https://check.prestigeworldwide.digital. Hermes held the child presentation and the child holder key. Hermes did not hold issuer.secret. Hermes did not hold the parent holder secret. Hermes is not a second identity store.
+
+prometheus runtime-check before-tool on Hermes used holder-sign on the child secret and the public check name. Honest allow printed ALLOWED and ran the tool. After Decommission of the parent by kill accept, the same historical child Assertion Act on Hermes printed REFUSED and did not run the tool. Death wins. The refuse names accepted kill. Holder-sign still works after local parent kill because the agent holds the child key. The public host refused because it accepted the parent kill cascade.
+
+This is not SPIRE. This is not a replica. This is not Sanctum.

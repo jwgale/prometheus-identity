@@ -1,0 +1,20 @@
+{
+  "first_keys": [
+    "certificate_pem",
+    "check_base",
+    "holder_secret_path",
+    "presentation_json"
+  ],
+  "second_keys": [
+    "certificate_pem",
+    "check_base",
+    "holder_secret_path",
+    "presentation_json"
+  ],
+  "check_base": "https://check.prestigeworldwide.digital",
+  "holder_secret_path_sent_to_issuing_host": true,
+  "holder_secret_bytes_sent_to_public_name": false,
+  "two_runtime_check_hits": true,
+  "independent_births": true,
+  "note": "GET / Check both posts this JSON once per present. Named check posts the same JSON for one held act. Secret bytes are not uploaded."
+}

@@ -1,0 +1,9 @@
+{
+  "http_status": 200,
+  "request_keys": [
+    "public_key_hex"
+  ],
+  "response_keys": [
+    "public_key_hex"
+  ]
+}

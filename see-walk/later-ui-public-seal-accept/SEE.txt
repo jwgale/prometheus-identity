@@ -1,0 +1,21 @@
+Later user interface public seal-accept walk
+
+Date: 23 August 2026 01:39 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The throwaway issuing store lived under /tmp/prometheus-later-ui-public-seal-accept-a. The stolen copy lived under /tmp/prometheus-later-ui-public-seal-stolen only. Both were deleted after this walk.
+
+The issuing host listened on 127.0.0.1:18806 only and is stopped after this walk. The stolen copy host listened on 127.0.0.1:18807 only and is stopped after this walk. GET / on the issuing host is the later user interface. GET / already posts POST /seal and POST /seal-export. This walk did not add that path.
+
+The walk used the same HTTP JSON that GET / posts. The walk did not use prometheus CLI check verbs. The walk did not spawn AgentProcess.
+
+Create Agent Principal stayed on 127.0.0.1. POST /issuer-accept on the public host returned 200. This throwaway issuer was not already pinned. issuer.secret was not copied onto the public host.
+
+POST /runtime-check on the loopback issuing host with check_base https://check.prestigeworldwide.digital allowed. The holder secret path stayed on the issuing host. Secret bytes were not sent to the public name.
+
+After local POST /seal with confirm seal and POST /seal-export, POST /seal-accept on the public host returned 200. A following POST /runtime-check of the same present returned 403. The reason is accepted seal, not expiry. A following POST /check-svid of that historical Assertion Act on the public host also returned 403 because this store accepted a seal.
+
+From the stolen /tmp copy, a new Create Agent Principal and a new Assertion Act still minted. POST /runtime-check of that new Assertion Act against the public name returned 403 because this store accepted a seal for that issuer pin. POST /check-svid of that new Assertion Act on the public host also returned 403. A stolen issuer.secret was not enough after public seal-accept.
+
+Live GET https://check.prestigeworldwide.digital stayed check-only JSON. Live POST /runtime-check on that name stayed 403. GET /.well-known/prometheus-check names POST /seal-accept as an operator pin.
+
+This throwaway issuer is not a standing operator store. This is not SPIRE. This is not a replica. This is not Sanctum.

@@ -1,0 +1,12 @@
+{
+  "instances": [
+    {
+      "instance_id": "01M0J90ESWKSY6MW8A0MT2E2V1",
+      "status": "revoked",
+      "capability_ids": [
+        "01M0J90ETDJZ7NCY564AW8JC0K"
+      ],
+      "agent_type_id": "01M0J90ERKSHPJ28YJKCZYCRN0"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+init ran on this machine. Secret files stay under /tmp/prometheus-later-ui-public-check-both-a.

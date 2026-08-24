@@ -1,0 +1,18 @@
+Hunt after Rung 83
+
+Date: 23 August 2026 02:28 America/Chicago
+
+This hunt looked for one leftover of a different class. It did not add SVID plus WIMSE act-accept pairings. It did not invent a walk.
+
+1. GET / leftover hardcoded pin
+GET / already posts followWellKnownThenPin for issuer-accept, kill-accept, seal-accept, previous-key-accept, and act-accept. Live GET / on 127.0.0.1:18816 contained those followWellKnownThenPin calls. It did not contain fetch("/seal-accept", fetch("/previous-key-accept", fetch("/act-accept", fetch("/kill-accept", or fetch("/issuer-accept". There is no leftover hardcoded accept pin on GET /. That is not worth rust.
+
+GET /laboratory still posts fetch("/seal-accept", fetch("/previous-key-accept", fetch("/act-accept", fetch("/kill-accept", and fetch("/issuer-accept". That page is the old loopback operator page. It is not GET /. This hunt does not invent a walk to convert that page.
+
+2. operator-pin explicit path not on the document
+POST /operator-pin body is check_base, pin, body, and optional holder_secret. There is no path field. resolve_operator_pin looks up the pin name on the well-known document. A write-verb pin name is refused. A missing pin is refused. An extra path field is ignored. The helper cannot follow a pin path that is not on the document.
+
+3. Issuing POST /act-export after only a public allow
+Live POST /runtime-check against https://check.prestigeworldwide.digital allowed. That allow body had no receipt. has_receipt was false. Public allow does not leave a receipt on the issuing store. Kernel build_act_bundle verifies the receipt on this store and proves issuance-log inclusion. A foreign or missing receipt cannot export. The walk required issuing POST /check so a receipt stayed on the issuing store. Public POST /act-export stayed 403. No leak.
+
+No new-class allow-hole. Do not invent a walk. VISION-open items that remain are not coding slices: who holds member two in a later market, GitHub publication, later market name for the well-known check, stolen-issuer limit only while a verifier has not accepted seal.

@@ -1,0 +1,8 @@
+{
+  "http_status": 200,
+  "pin": "issuer-accept",
+  "resolved_path": "/issuer-accept",
+  "response_keys": [
+    "public_key_hex"
+  ]
+}

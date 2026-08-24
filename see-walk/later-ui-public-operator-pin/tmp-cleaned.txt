@@ -1,0 +1,1 @@
+Deleted /tmp/prometheus-later-ui-public-operator-pin-a after the walk. issuer.secret is not left under /tmp from this walk.

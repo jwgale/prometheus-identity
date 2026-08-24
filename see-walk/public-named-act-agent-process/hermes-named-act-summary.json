@@ -1,0 +1,9 @@
+{
+  "pid": "59823",
+  "same_pid": true,
+  "unnamed_after_one_death": "REFUSED",
+  "named_live": "ALLOWED",
+  "named_dead": "REFUSED",
+  "tool_named_live": "TOOLLIVE",
+  "elapsed_s": 40.89
+}

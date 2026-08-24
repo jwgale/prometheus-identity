@@ -1,0 +1,15 @@
+{
+  "operator_pin_paths": [
+    {
+      "method": "POST",
+      "path": "/seal-accept"
+    },
+    {
+      "method": "POST",
+      "path": "/previous-key-accept"
+    }
+  ],
+  "names_act_accept": false,
+  "names_act_export": false,
+  "note": "Live POST /act-accept is allowed even when the published document omits that pin. This walk does not invent a public write."
+}

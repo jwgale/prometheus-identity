@@ -1,0 +1,12 @@
+{
+  "keys": [
+    "certificate_pem",
+    "check_base",
+    "holder_secret_path",
+    "presentation_json"
+  ],
+  "check_base": "https://check.prestigeworldwide.digital",
+  "holder_secret_path_sent_to_issuing_host": true,
+  "holder_secret_bytes_sent_to_public_name": false,
+  "note": "GET /laboratory Check and Check again post this JSON to the loopback issuing host. That host signs the verifier nonce locally. Secret bytes are not uploaded. The path is not sent to the public name."
+}

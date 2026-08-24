@@ -1,0 +1,5 @@
+issuing GET / is the later user interface
+GET / Check WIMSE posts POST /runtime-check with present-wimse fields
+GET / act-accept follows well-known through POST /operator-pin
+listen 127.0.0.1:18816
+html_bytes 91535

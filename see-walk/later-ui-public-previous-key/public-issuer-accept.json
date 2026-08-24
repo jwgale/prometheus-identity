@@ -1,0 +1,11 @@
+{
+  "http_status": 200,
+  "pin_needed": true,
+  "request_keys": [
+    "public_key_hex"
+  ],
+  "response_keys": [
+    "public_key_hex"
+  ],
+  "public_key_hex_length": 3904
+}

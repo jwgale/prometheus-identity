@@ -1,0 +1,12 @@
+{
+  "instances": [
+    {
+      "instance_id": "01M0NKH90B6JKAECRJ9XKBMG7K",
+      "status": "live",
+      "capability_ids": [
+        "01M0NKH90CPR0Z64PRNBQ4482T"
+      ],
+      "agent_type_id": "01M0NKH90AZ61XP076D7Z9BZ2M"
+    }
+  ]
+}

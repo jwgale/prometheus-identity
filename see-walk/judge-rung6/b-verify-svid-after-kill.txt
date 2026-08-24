@@ -1,0 +1,6 @@
+exit_code=1
+stdout:
+stderr:
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running `target/release/prometheus --data-directory /tmp/prometheus-judge-rung6/store-b present verify-svid --svid /home/jason/Projects/Prometheus/see-walk/judge-rung6/presentation.json.svid.pem --presentation /home/jason/Projects/Prometheus/see-walk/judge-rung6/presentation.json`
+{"reason":"The verification failed: This store accepted a kill for this instance. Present verify is refused after kill accept. Death travels as a kill bundle. The check fails closed.","result":"refused"}

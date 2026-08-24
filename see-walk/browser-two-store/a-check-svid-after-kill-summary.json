@@ -1,0 +1,4 @@
+{
+  "result": "refused",
+  "reason": "The verification failed: This store's own records say this instance is revoked. Present verify is refused after local kill. Death on the issuing store does not require a kill-accept bundle. The check fails closed."
+}

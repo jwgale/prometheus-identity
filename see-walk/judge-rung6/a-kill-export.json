@@ -1,0 +1,1 @@
+{"message":"The kill bundle was written as event.json, proof.json, and tree-head.json. This is a local export of existing artifacts. This is not a sixth identity record. This is not a global name system. This is not SPIFFE federation. This is not Certificate Transparency gossip.","output":"/tmp/prometheus-judge-rung6/kill-bundle","result":"accepted"}

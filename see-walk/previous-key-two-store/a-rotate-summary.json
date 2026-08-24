@@ -1,0 +1,19 @@
+{
+  "previous_count": 1,
+  "previous_kill_date": "2026-08-20T16:13:48.593566870Z",
+  "previous_key_len": 3904,
+  "current_key_len": 3904,
+  "previous_matches_old": true,
+  "current_differs_from_old": true,
+  "keys": [
+    "accepted_issuer_public_keys",
+    "biscuit_public_key_hex",
+    "crypto_profile",
+    "current_public_key",
+    "issuance_log",
+    "previous_issuer_keys",
+    "public_keys",
+    "threshold_n",
+    "verify_threshold_n"
+  ]
+}

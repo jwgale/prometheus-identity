@@ -1,0 +1,1 @@
+Copied prometheus binary, presentation.json, laboratory X.509-SVID wrap, WIMSE token, content-digest, HTTP Message Signature, and holder.secret to Hermes /var/lib/prometheus-agent. Did not copy issuer.secret. Did not copy biscuit.secret.

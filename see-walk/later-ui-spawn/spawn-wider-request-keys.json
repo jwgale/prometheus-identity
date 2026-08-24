@@ -1,0 +1,12 @@
+{
+  "keys": [
+    "audience",
+    "challenge_nonce",
+    "holder_secret_path",
+    "intent",
+    "on_behalf_of",
+    "owner",
+    "parent_capability_id",
+    "parent_instance_id"
+  ]
+}

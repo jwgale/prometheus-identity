@@ -1,0 +1,13 @@
+Two-store loopback previous-key walk files
+
+Date: 20 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts from the two-store previous-key walk. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The two stores lived under /tmp/prometheus-previous-key-two-store-a and /tmp/prometheus-previous-key-two-store-b.
+
+Store A listened on 127.0.0.1:18771. Store B listened on 127.0.0.1:18772. Both hosts are stopped.
+
+Store B never received a holder secret path. Holder proof on Store B was a signature over a verifier-challenge nonce. Sign stayed on Store A.
+
+Rotate stayed on the command line. Export returned public key hex and kill date only.
+
+See BROWSER-WALK.md at the repository root, or ANSWERS.md in this folder.

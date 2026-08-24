@@ -1,0 +1,10 @@
+{
+  "keys": [
+    "certificate_pem",
+    "check_base",
+    "holder_secret_path",
+    "presentation_json"
+  ],
+  "check_base": "https://check.prestigeworldwide.digital",
+  "holder_secret_path_sent_to_issuing_host": true
+}

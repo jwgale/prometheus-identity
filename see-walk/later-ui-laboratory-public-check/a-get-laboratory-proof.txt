@@ -1,0 +1,5 @@
+issuing GET /laboratory is the laboratory operator page with Check again
+listen 127.0.0.1:18818
+content_type text/html; charset=utf-8
+html_bytes 117185
+markers id="check-base", name="check_base", https://check.prestigeworldwide.digital, Birth an instance, /runtime-check, id="check-again", Check again, function checkAgain(, Each click hits the host, /well-known-follow, /operator-pin, This page does not fetch the public name

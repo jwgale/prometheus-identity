@@ -1,0 +1,14 @@
+{
+  "check_base": "https://check.prestigeworldwide.digital",
+  "kill_accept_pin_name": "kill-accept",
+  "kill_accept_path": "/kill-accept",
+  "issuer_accept_path": "/issuer-accept",
+  "operator_pin_paths": [
+    "/issuer-accept",
+    "/kill-accept",
+    "/seal-accept",
+    "/previous-key-accept",
+    "/act-accept"
+  ],
+  "note": "GET / resolves these paths from the well-known document. POST /operator-pin then posts that pin name."
+}

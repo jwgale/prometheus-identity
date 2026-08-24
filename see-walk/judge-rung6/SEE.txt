@@ -1,0 +1,7 @@
+Judge walk files
+
+Date: 20 August 2026.
+
+This folder is for Jason Gale. These files are non-secret records and artifacts from the rung 6 judge walk. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The two stores lived under /tmp/prometheus-judge-rung6.
+
+See JUDGE.md at the repository root, or ANSWERS.md in this folder.

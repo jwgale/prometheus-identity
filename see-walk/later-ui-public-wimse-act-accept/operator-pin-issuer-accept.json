@@ -1,0 +1,13 @@
+{
+  "http_status": 200,
+  "pin": "issuer-accept",
+  "resolved_path": "/issuer-accept",
+  "request_keys": [
+    "check_base",
+    "pin",
+    "body"
+  ],
+  "response_keys": [
+    "public_key_hex"
+  ]
+}

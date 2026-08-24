@@ -1,0 +1,14 @@
+{
+  "GET /health": 200,
+  "POST /agent-type": 200,
+  "POST /birth": 200,
+  "POST /spawn wider": 403,
+  "POST /spawn": 200,
+  "GET /instances after spawn": 200,
+  "POST /present-svid": 200,
+  "GET /issuer-public": 200,
+  "POST /issuer-accept": 200,
+  "POST /kill parent": 200,
+  "POST /kill-export": 200,
+  "POST /kill-accept": 200
+}

@@ -1,0 +1,25 @@
+Connect, request a verifier challenge, and post the documented check. This command is one process. Exit 0 only when the check is allowed. The caller supplies the holder signature. This command does not read holder secrets
+
+Usage: prometheus runtime-check act [OPTIONS] --base-url <BASE_URL> --presentation-json <PRESENTATION_JSON>
+
+Options:
+      --base-url <BASE_URL>
+          Loopback base URL of the check host. Must be http://127.0.0.1
+      --presentation-json <PRESENTATION_JSON>
+          Path to the present JSON bytes
+      --certificate-pem <CERTIFICATE_PEM>
+          Path to the laboratory X.509-SVID PEM. This is the first on-ramp
+      --workload-identity-token <WORKLOAD_IDENTITY_TOKEN>
+          Path to the Workload Identity Token text. Same verb. Documented WIMSE check path
+      --content-digest <CONTENT_DIGEST>
+          Content-Digest of the present bytes. Required with the WIMSE present
+      --signature-input <SIGNATURE_INPUT>
+          HTTP Message Signature Input over the documented check method, path, and content-digest
+      --signature <SIGNATURE>
+          HTTP Message Signature over the documented check method, path, and content-digest
+      --holder-proof <HOLDER_PROOF>
+          Holder signature over the verifier nonce this process requests. Sign on the issuing store
+      --holder-proof-command <HOLDER_PROOF_COMMAND>
+          Shell command that writes the holder signature to standard output. The laboratory runtime sets PROMETHEUS_CHALLENGE_MESSAGE. This command does not read holder secrets
+  -h, --help
+          Print help

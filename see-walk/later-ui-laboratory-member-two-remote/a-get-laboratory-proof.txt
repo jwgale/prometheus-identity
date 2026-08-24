@@ -1,0 +1,9 @@
+issuing GET /laboratory is the laboratory operator page
+listen 127.0.0.1:18838
+content_type text/html; charset=utf-8
+html_bytes 117185
+markers Prometheus loopback operator page, This page is a laboratory operator surface, This page is not the later full user interface, id="birth-member-secret-path", name="member_secret_path", Birth an instance, After issuance threshold_n is 2
+title Prometheus loopback operator page
+not the later user interface title
+issuer.secret not named
+no file upload control

@@ -1,0 +1,1 @@
+{"message":"The act bundle was written as receipt.json, proof.json, and tree-head.json. This is a local export of three existing artifacts. This is not a global name system. This is not SPIFFE federation. This is not Certificate Transparency gossip.","output_directory":"/tmp/prometheus-judge-rung6/act-bundle","result":"accepted"}

@@ -1,0 +1,3 @@
+The verification failed: The add-act line names one on-ramp. Do not mix an X.509-SVID wrap with a WIMSE present on the same add-act line. The add fails closed.
+The verification failed: A holder secret path is refused. The laboratory runtime does not read holder secrets. Secret bytes are not opened. The check fails closed.
+The verification failed: The X.509-SVID wrap has expired. Now is at or after NotAfter. Short life is not kill. The check fails closed.

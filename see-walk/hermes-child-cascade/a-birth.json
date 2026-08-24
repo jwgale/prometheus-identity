@@ -1,0 +1,8 @@
+{
+  "instance_id": "01M0NKH90B6JKAECRJ9XKBMG7K",
+  "capability_id": "01M0NKH90CPR0Z64PRNBQ4482T",
+  "revoke_identifier": "9767591fd8e321c045ad81f409d9cfbfbbd714b1db5d039833746402909c8ed52b13bc65a18bdaef0b4f2adf587c2a58927ad777d96310e0e982656bd23c050b",
+  "holder_secret_path_present": true,
+  "intent": "read",
+  "audience": "check.prestigeworldwide.digital"
+}

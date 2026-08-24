@@ -1,0 +1,10 @@
+{
+  "vpc_mount_issuer_secret_count": 0,
+  "vpc_mount_member_two_secret_present": true,
+  "standing_data_a_threshold_n": 1,
+  "laptop_member_two_secret_mtime": "2026-08-19 12:24 CDT",
+  "sshfs_mounted": true,
+  "vpc_custody_file_count": 1,
+  "vpc_issuer_secret_count": 0,
+  "direct_ssh_issuer_secret_count": 0
+}

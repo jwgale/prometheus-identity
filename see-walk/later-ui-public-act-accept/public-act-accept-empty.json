@@ -1,0 +1,9 @@
+{
+  "http_status": 400,
+  "body": {
+    "reason": "The request body is not valid JSON: missing field `receipt` at line 1 column 2",
+    "result": "refused"
+  },
+  "allowed_operator_pin": true,
+  "note": "400 missing field receipt means the path is not check-only 403."
+}

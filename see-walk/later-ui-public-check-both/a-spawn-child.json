@@ -1,0 +1,12 @@
+{
+  "parent_instance_id": "01M0PTC92NGXC501QXS53DFE7V",
+  "instance_id": "01M0PTCAJNTN8GXDPV684NY1YN",
+  "capability_id": "01M0PTCAJPKN9Y5TCK63R2990X",
+  "audience": "check.prestigeworldwide.digital/child",
+  "holder_secret_path_present": true,
+  "keys": [
+    "capability_id",
+    "holder_secret_path",
+    "instance_id"
+  ]
+}

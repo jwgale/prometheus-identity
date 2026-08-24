@@ -1,0 +1,16 @@
+{
+  "first": {
+    "http_status": 200,
+    "result": "allowed",
+    "reason": null
+  },
+  "second": {
+    "http_status": 200,
+    "result": "allowed",
+    "reason": null
+  },
+  "check_both_allowed": true,
+  "cached_allowed": false,
+  "two_runtime_check_hits": true,
+  "independent_births": true
+}

@@ -1,0 +1,37 @@
+{
+  "issuer-accept-truncated-hex": {
+    "http_status": 403,
+    "result": "refused",
+    "reason": "The verification failed: The public key is not a valid Module-Lattice Digital Signature Algorithm hexadecimal public key. Accept-list keys are identity-root public keys. The check fails closed."
+  },
+  "issuer-accept-empty-hex": {
+    "http_status": 403,
+    "result": "refused",
+    "reason": "The verification failed: The issuer-accept path requires public_key_hex. An empty issuer public key cannot be accepted. The check fails closed."
+  },
+  "issuer-accept-short-hex": {
+    "http_status": 403,
+    "result": "refused",
+    "reason": "The verification failed: The public key is not a valid Module-Lattice Digital Signature Algorithm hexadecimal public key. Accept-list keys are identity-root public keys. The check fails closed."
+  },
+  "previous-key-accept-truncated-hex": {
+    "http_status": 403,
+    "result": "refused",
+    "reason": "The verification failed: The previous-key-accept path refuses a truncated issuer public key hexadecimal. Paste the full key. The envelope key is not an issuer identity root. The check fails closed."
+  },
+  "act-accept-empty-artifacts": {
+    "http_status": 400,
+    "result": "refused",
+    "reason": "The request body is not valid JSON: missing field `instance_id` at line 1 column 14"
+  },
+  "kill-accept-empty-artifacts": {
+    "http_status": 400,
+    "result": "refused",
+    "reason": "The request body is not valid JSON: missing field `event` at line 1 column 12"
+  },
+  "seal-accept-empty-artifacts": {
+    "http_status": 400,
+    "result": "refused",
+    "reason": "The request body is not valid JSON: missing field `event` at line 1 column 12"
+  }
+}

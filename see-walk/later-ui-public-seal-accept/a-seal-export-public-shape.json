@@ -1,0 +1,27 @@
+{
+  "keys": [
+    "event",
+    "proof",
+    "tree_head"
+  ],
+  "event_keys": [
+    "event",
+    "issuance_log_line",
+    "issuer_public_key_hex",
+    "kill_date"
+  ],
+  "proof_keys": [
+    "leaf_index",
+    "line_hash",
+    "root",
+    "sibling_hashes"
+  ],
+  "tree_head_keys": [
+    "issuer_public_key_hex",
+    "leaf_count",
+    "merkle_root",
+    "signature_hex",
+    "signed_at"
+  ],
+  "secret_bytes": false
+}

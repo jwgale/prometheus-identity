@@ -1,0 +1,1 @@
+store B instances directory has no instance records.

@@ -1,0 +1,13 @@
+Local agent before-tool walk files
+
+Date: 22 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts from the local agent before-tool two-store death walk. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The two stores lived under /tmp/prometheus-local-agent-a and /tmp/prometheus-local-agent-b.
+
+Store A listened on 127.0.0.1:18780. Store B listened on 127.0.0.1:18781. Both hosts bind 127.0.0.1 only. Both hosts are stopped.
+
+GET / headings on store A used Create Agent Principal, Assertion Act, and Decommission. Check stayed Check. The page did not use <h2>Birth</h2> or <h2>Death</h2> as product headings. File: get-root-proof.txt.
+
+The documented command is prometheus runtime-check before-tool. One process connected to Store B, followed GET /.well-known/prometheus-check, requested a verifier challenge, and posted the documented X.509-SVID check with a caller-supplied holder signature. The process printed ALLOWED and ran the tool. Store B never received a holder secret path. Sign stayed on Store A. Store B wrote no instance record. After Decommission by kill accept, the same process on the historical Assertion Act printed REFUSED and did not run the tool. Death wins.
+
+See BROWSER-WALK.md at the repository root, or ANSWERS.md in this folder.

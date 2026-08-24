@@ -1,0 +1,11 @@
+Public well-known check honesty walk
+
+Date: 22 August 2026.
+
+This folder is for Jason Gale. These files are public records. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets.
+
+GET https://check.prestigeworldwide.digital/.well-known/prometheus-check returned HTTP 200. The live document names bind check.prestigeworldwide.digital. The live document names POST /check-svid and POST /check-wimse. The live document does not name Create Agent Principal, spawn, or Assertion Act mint as check paths.
+
+The public check-only process was restarted with the current Ubuntu binary at process identifier 5340. The published document now omits export write verbs /seal-export and /previous-key-export. The published document keeps accept pins /seal-accept and /previous-key-accept. The laboratory runtime follows that public document.
+
+This is not SPIRE. This is not a replica. This is not a public listener for birth. This is not Sanctum.

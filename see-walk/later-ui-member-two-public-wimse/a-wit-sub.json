@@ -1,0 +1,6 @@
+{
+  "sub_prefix": "wimse://prometheus.laboratory/present/",
+  "sub_is_present_hash_wimse_uri": true,
+  "iss": "wimse://prometheus.laboratory",
+  "instance_identifier_in_sub": false
+}

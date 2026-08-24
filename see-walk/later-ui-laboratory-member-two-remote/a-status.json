@@ -1,0 +1,25 @@
+{
+  "instance_live_count": 1,
+  "instance_revoked_count": 0,
+  "member_count": 2,
+  "threshold_n": 2,
+  "keys": [
+    "agent_type_count",
+    "capability_count",
+    "chain_count",
+    "check_host_bind",
+    "crypto_profile",
+    "current_issuer_public_key_hex",
+    "current_issuer_public_key_hexadecimal_length",
+    "honest_line",
+    "instance_live_count",
+    "instance_revoked_count",
+    "issuance_log_leaf_count",
+    "issuance_log_merkle_root",
+    "kill_date",
+    "member_count",
+    "sealed",
+    "threshold_n",
+    "verify_threshold_n"
+  ]
+}

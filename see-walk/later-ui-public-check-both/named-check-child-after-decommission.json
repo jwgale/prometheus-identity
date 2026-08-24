@@ -1,0 +1,19 @@
+{
+  "http_status": 403,
+  "result": "refused",
+  "reason": "The verification failed: This store accepted a kill for this instance. Present verify is refused after kill accept. Death travels as a kill bundle. The check fails closed.",
+  "act": 2,
+  "same_child_present": true,
+  "cached_allowed": false,
+  "refuse_from_accepted_kill_cascade": true,
+  "keys": [
+    "audience",
+    "capability_id",
+    "challenge_nonce",
+    "instance_id",
+    "intent",
+    "on_behalf_of",
+    "reason",
+    "result"
+  ]
+}

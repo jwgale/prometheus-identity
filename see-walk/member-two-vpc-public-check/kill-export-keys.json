@@ -1,0 +1,23 @@
+{
+  "event_keys": [
+    "event",
+    "instance_id",
+    "issuance_log_line",
+    "killed_capability_ids",
+    "killed_instance_ids"
+  ],
+  "proof_keys": [
+    "leaf_index",
+    "line_hash",
+    "root",
+    "sibling_hashes"
+  ],
+  "tree_head_keys": [
+    "issuer_public_key_hex",
+    "issuer_signatures",
+    "leaf_count",
+    "merkle_root",
+    "signature_hex",
+    "signed_at"
+  ]
+}

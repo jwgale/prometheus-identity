@@ -1,0 +1,11 @@
+Two-store loopback seal walk files
+
+Date: 20 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts from the two-store seal walk. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The two stores lived under /tmp/prometheus-seal-two-store-a and /tmp/prometheus-seal-two-store-b.
+
+Store A listened on 127.0.0.1:18769. Store B listened on 127.0.0.1:18770. Both hosts are stopped.
+
+Store B never received a holder secret path. Holder proof on Store B was a signature over a verifier-challenge nonce. Sign stayed on Store A.
+
+See BROWSER-WALK.md at the repository root, or ANSWERS.md in this folder.

@@ -1,0 +1,10 @@
+{
+  "http_status": 200,
+  "public_key_hex_len": 3904,
+  "response_keys": [
+    "public_key_hex"
+  ],
+  "secret_bytes_returned": false,
+  "remote_path_used": true,
+  "path_is_sshfs_mount": true
+}

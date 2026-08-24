@@ -1,0 +1,25 @@
+Later user interface public WIMSE act-accept via operator-pin walk
+
+Date: 23 August 2026 02:28 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The throwaway issuing store lived under /tmp/prometheus-later-ui-public-wimse-act-accept-a. That store was deleted after this walk.
+
+The issuing host listened on 127.0.0.1:18816 only and is stopped after this walk. GET / on that host is the later user interface. Off-origin verifier pins use POST /well-known-follow and POST /operator-pin. This walk did not hardcode public /act-accept as the accept URL.
+
+The walk used the same HTTP JSON that GET / posts. The walk did not use prometheus CLI check verbs. The walk did not spawn AgentProcess.
+
+Live GET https://check.prestigeworldwide.digital stayed check-only JSON. Live POST /operator-pin, POST /well-known-follow, POST /runtime-check, and POST /act-export on that name stayed 403 check-only. Live empty-body POST /act-accept returned HTTP 400 missing field receipt. That is an allowed operator pin, not check-only 403. Public GET /instances stayed 403.
+
+Issuing POST /well-known-follow with check_base https://check.prestigeworldwide.digital returned the public document. That document names bind check.prestigeworldwide.digital. operator_pin_paths names POST /issuer-accept, POST /kill-accept, POST /seal-accept, POST /previous-key-accept, and POST /act-accept. The walk resolved act-accept from that document. The path was /act-accept. The document does not name Create Agent Principal, spawn, Assertion Act mint, or export write verbs.
+
+Create Agent Principal stayed on 127.0.0.1. POST /operator-pin issuer-accept against the public host returned 200. This throwaway issuer was not already pinned. issuer.secret was not copied onto the public host.
+
+POST /present-wimse minted a laboratory Workload Identity Token plus Content-Digest. POST /runtime-check on the loopback issuing host with check_base https://check.prestigeworldwide.digital allowed. The holder secret path stayed on the issuing host. Secret bytes were not sent to the public name. WIMSE token, digest, and signature fields were not trimmed. The public allow does not leave a receipt on the issuing store. The issuing store then posted POST /check of that same act so the receipt stayed on the issuing store.
+
+POST /act-export on the issuing host returned receipt, proof, and tree_head. POST /well-known-follow again resolved act-accept from the same document. POST /operator-pin with pin act-accept and those artifacts returned 200 accepted. The walk did not hardcode public /act-accept as the accept URL. Public GET /instances stayed 403 check-only. Public POST /act-export stayed 403 check-only. The public host wrote no instance record.
+
+After Decommission, POST /kill-export on the issuing host returned event, proof, and tree_head. POST /well-known-follow again resolved kill-accept from the same document. POST /operator-pin with pin kill-accept and those artifacts returned 200. A following POST /runtime-check of the same WIMSE present returned 403. The reason is accepted kill, not expiry and not a missing inode.
+
+A following POST /check-wimse of that same historical Assertion Act on the public host also returned 403 because this store accepted a kill.
+
+This throwaway issuer is not a standing operator store. This is not SPIRE. This is not a replica. This is not Sanctum.

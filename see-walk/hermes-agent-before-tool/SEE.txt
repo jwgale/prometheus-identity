@@ -1,0 +1,11 @@
+Hermes agent before-tool walk
+
+Date: 22 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-hermes-agent-a.
+
+Create Agent Principal ran on the operator machine. The agent ran on Hermes at 52.91.253.34. The verifier is https://check.prestigeworldwide.digital. Hermes held the presentation and the holder key. Hermes did not hold issuer.secret. Hermes is not a second identity store.
+
+prometheus runtime-check before-tool on Hermes used holder-sign on that machine and the public check name. Honest allow printed ALLOWED and ran the tool. After Decommission by kill accept, the same historical Assertion Act on Hermes printed REFUSED and did not run the tool. Death wins. Holder-sign still works after local kill because the agent holds the key. The public host refused because it accepted a kill.
+
+This is not SPIRE. This is not a replica. This is not Sanctum.

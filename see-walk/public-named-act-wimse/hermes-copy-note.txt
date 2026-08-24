@@ -1,0 +1,1 @@
+Copied prometheus binary and holder secrets to Hermes. Presentation artifacts are copied after mint. Did not copy issuer.secret.

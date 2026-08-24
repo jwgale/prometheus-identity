@@ -1,0 +1,30 @@
+{
+  "https://www.prestigeworldwide.digital": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: The laboratory runtime accepts http://127.0.0.1 or https://check.prestigeworldwide.digital. Other hosts are refused.",
+      "result": "refused"
+    }
+  },
+  "https://prestigeworldwide.digital": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: The laboratory runtime accepts http://127.0.0.1 or https://check.prestigeworldwide.digital. Other hosts are refused.",
+      "result": "refused"
+    }
+  },
+  "http://check.prestigeworldwide.digital": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: HTTP to check.prestigeworldwide.digital is refused. The laboratory runtime uses HTTPS for that name. Loopback stays raw HTTP on 127.0.0.1.",
+      "result": "refused"
+    }
+  },
+  "https://check.prestigeworldwide.digital:8443": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: The laboratory runtime accepts http://127.0.0.1 or https://check.prestigeworldwide.digital. Other hosts are refused.",
+      "result": "refused"
+    }
+  }
+}

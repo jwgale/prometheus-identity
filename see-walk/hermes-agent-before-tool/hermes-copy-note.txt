@@ -1,0 +1,1 @@
+Copied prometheus binary, presentation.json, presentation.json.svid.pem, and holder.secret to Hermes /var/lib/prometheus-agent. Did not copy issuer.secret. Did not copy biscuit.secret.

@@ -1,0 +1,11 @@
+Later user interface spawn walk files
+
+Date: 21 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts from the later user interface spawn walk on GET /. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-later-ui-spawn.
+
+The issuing store listened on 127.0.0.1:18779. The host binds 127.0.0.1 only. The host is stopped.
+
+A person used GET /, not GET /laboratory. One issuing store. Spawn is not a role catalog. The child is what was presented and killed. After child kill, check of the child historical present refused. Death wins. Short certificate life is not kill. GET /instances locked the parent identifier on the child listing.
+
+See BROWSER-WALK.md at the repository root, or ANSWERS.md in this folder.

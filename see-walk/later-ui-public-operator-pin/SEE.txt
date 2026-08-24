@@ -1,0 +1,27 @@
+Later user interface public operator-pin kill-accept walk
+
+Date: 23 August 2026 02:20 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The throwaway issuing store lived under /tmp/prometheus-later-ui-public-operator-pin-a. That store was deleted after this walk.
+
+The issuing host listened on 127.0.0.1:18814 only and is stopped after this walk. GET / on that host is the later user interface. Off-origin verifier pins use POST /well-known-follow and POST /operator-pin. This walk did not hardcode public /kill-accept as the accept URL.
+
+The walk used the same HTTP JSON that GET / posts. The walk did not use prometheus CLI check verbs. The walk did not spawn AgentProcess.
+
+Live GET https://check.prestigeworldwide.digital stayed check-only JSON. Live POST /operator-pin, POST /well-known-follow, and POST /runtime-check on that name stayed 403 check-only.
+
+Issuing POST /operator-pin refused www.prestigeworldwide.digital, the apex prestigeworldwide.digital, HTTP to the public name, and https://check.prestigeworldwide.digital:8443.
+
+Issuing POST /well-known-follow with check_base https://check.prestigeworldwide.digital returned the public document. That document names bind check.prestigeworldwide.digital. operator_pin_paths names POST /issuer-accept, POST /kill-accept, POST /seal-accept, POST /previous-key-accept, and POST /act-accept. The walk resolved kill-accept from that document. The path was /kill-accept. The document does not name Create Agent Principal, spawn, Assertion Act mint, or export write verbs.
+
+Create Agent Principal stayed on 127.0.0.1. POST /operator-pin issuer-accept against the public host returned 200. This throwaway issuer was not already pinned. issuer.secret was not copied onto the public host.
+
+POST /runtime-check on the loopback issuing host with check_base https://check.prestigeworldwide.digital allowed. The holder secret path stayed on the issuing host. Secret bytes were not sent to the public name.
+
+After Decommission, POST /kill-export on the issuing host returned event, proof, and tree_head. POST /well-known-follow again resolved kill-accept from the same document. POST /operator-pin with pin kill-accept and those artifacts returned 200. The accepted list includes this instance. A following POST /runtime-check of the same present returned 403. The reason is accepted kill, not expiry and not a missing inode.
+
+A following POST /check-svid of that same historical Assertion Act on the public host also returned 403 because this store accepted a kill.
+
+Live operator-pin leftovers stayed refused. A write-verb pin name against the public document, a missing pin, an empty pin name, and holder secret bytes returned 403. Empty kill-accept artifacts returned 400 missing field event. Empty act-accept artifacts returned 400 missing field receipt. Those refuses were already fail-closed. This walk did not add a rust test for a live allow hole.
+
+This throwaway issuer is not a standing operator store. This is not SPIRE. This is not a replica. This is not Sanctum.

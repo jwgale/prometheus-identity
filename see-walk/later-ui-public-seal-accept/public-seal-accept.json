@@ -1,0 +1,9 @@
+{
+  "http_status": 200,
+  "public_key_hex_length": 3904,
+  "kill_date": "2026-08-24T06:38:55.285147437+00:00",
+  "response_keys": [
+    "kill_date",
+    "public_key_hex"
+  ]
+}

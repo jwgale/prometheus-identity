@@ -1,0 +1,9 @@
+{
+  "keys": [
+    "kill_date",
+    "public_key_hex"
+  ],
+  "public_key_len": 3904,
+  "kill_date": "2026-08-20T16:13:48.593566870+00:00",
+  "matches_old": true
+}

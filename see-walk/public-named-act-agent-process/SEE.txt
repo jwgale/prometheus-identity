@@ -1,0 +1,11 @@
+Public named-act durable agent process walk
+
+Date: 23 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-public-named-act-a.
+
+Create Agent Principal ran on the operator machine and bound 127.0.0.1 only. Two independent live instances were born. The durable agent process ran on Hermes at 52.91.253.34. The verifier is https://check.prestigeworldwide.digital. Hermes held both Assertion Acts and the holder keys. Hermes did not hold issuer.secret. Hermes is not a second identity store.
+
+prometheus runtime-check agent-process on Hermes started with the first X.509-SVID Assertion Act. The first tool line printed ALLOWED. add-act of the second independent Assertion Act printed ADDED on the same process identifier. An unnamed tool line printed ALLOWED only after both documented checks allowed. After Decommission of the first instance by kill accept, an unnamed tool line on the same process identifier printed REFUSED because this store accepted a kill. A line that named act 2 printed ALLOWED and ran the tool because that Assertion Act was still live. A line that named act 1 printed REFUSED because this store accepted a kill. The process did not restart.
+
+This is not SPIRE. This is not a replica. This is not a public listener for birth. This is not Sanctum.

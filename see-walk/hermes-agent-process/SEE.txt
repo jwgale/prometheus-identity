@@ -1,0 +1,11 @@
+Hermes durable agent process walk
+
+Date: 22 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-hermes-agent-process-a.
+
+Create Agent Principal ran on the operator machine and bound 127.0.0.1 only. The durable agent process ran on Hermes at 52.91.253.34. The verifier is https://check.prestigeworldwide.digital. Hermes held the presentation and the holder key. Hermes did not hold issuer.secret. Hermes is not a second identity store.
+
+prometheus runtime-check agent-process on Hermes used holder-sign on that machine and the public check name. The process stayed up. One tool line printed ALLOWED and ran the tool. After Decommission by kill accept, a second tool line on the same process identifier printed REFUSED and did not run the tool. Death wins. The refuse names accepted kill. The process did not restart.
+
+This is not SPIRE. This is not a replica. This is not a public listener. This is not Sanctum.

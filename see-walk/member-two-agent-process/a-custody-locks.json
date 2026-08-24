@@ -1,0 +1,10 @@
+{
+  "standing_data_a_threshold_n": 1,
+  "laptop_member_two_mtime_unchanged": true,
+  "vpc_issuer_secret_count": 0,
+  "vpc_custody_file_count": 1,
+  "sshfs_mounted": true,
+  "mount_issuer_secret_present": false,
+  "agent_process_is_not_a_store": true,
+  "hermes_not_started": true
+}

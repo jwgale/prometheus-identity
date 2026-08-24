@@ -1,0 +1,13 @@
+{
+  "http_status": 200,
+  "previous_matches_old": true,
+  "current_differs_from_old": true,
+  "previous_public_key_hex_length": 3904,
+  "current_issuer_public_key_hex_length": 3904,
+  "previous_kill_date": "2026-08-23T06:45:09.204607557+00:00",
+  "keys": [
+    "current_issuer_public_key_hex",
+    "previous_kill_date",
+    "previous_public_key_hex"
+  ]
+}

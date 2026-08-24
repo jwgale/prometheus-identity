@@ -1,0 +1,13 @@
+{
+  "http_status": 200,
+  "has_presentation_json": true,
+  "has_certificate_pem": true,
+  "intent": "read",
+  "audience": "check.prestigeworldwide.digital",
+  "issuer_signature_count": 2,
+  "response_keys": [
+    "certificate_pem",
+    "presentation_json"
+  ],
+  "secret_bytes_returned": false
+}

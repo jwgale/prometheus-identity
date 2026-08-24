@@ -1,0 +1,4 @@
+{
+  "reason": "The audience 'check.prestigeworldwide' is above the authorization limit 'check.prestigeworldwide.digital' of the agent type.",
+  "result": "refused"
+}

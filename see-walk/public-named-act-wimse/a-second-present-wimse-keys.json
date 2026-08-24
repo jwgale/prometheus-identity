@@ -1,0 +1,10 @@
+{
+  "keys": [
+    "content_digest",
+    "presentation_json",
+    "signature",
+    "signature_input",
+    "workload_identity_token"
+  ],
+  "token_length": 520
+}

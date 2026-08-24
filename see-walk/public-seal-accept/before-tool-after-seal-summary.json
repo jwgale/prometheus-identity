@@ -1,0 +1,6 @@
+{
+  "gate": "REFUSED",
+  "exit": 1,
+  "tool_ran": false,
+  "reason": "The verification failed: This store accepted a seal for this issuer public key. Present verify is refused after seal accept. Seal accept is issuer death for verify. The check fails closed."
+}

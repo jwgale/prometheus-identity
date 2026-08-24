@@ -1,0 +1,15 @@
+Public seal-accept stolen-issuer walk
+
+Date: 22 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The throwaway issuing store lived under /tmp/prometheus-public-seal-a. The stolen copy lived under /tmp/prometheus-public-seal-stolen only.
+
+The issuing host listened on 127.0.0.1:18793 only and is stopped after this walk. The stolen copy host listened on 127.0.0.1:18794 only and is stopped after this walk. The verifier is the public check-only host at https://check.prestigeworldwide.digital. Create Agent Principal stayed on 127.0.0.1.
+
+prometheus runtime-check before-tool used base URL https://check.prestigeworldwide.digital and prometheus holder-sign on this machine. Honest allow printed ALLOWED, exit 0, and ran the tool.
+
+After local POST /seal with confirm seal and POST /seal-export, POST /seal-accept on the public host returned 200. A following POST /check-svid of the historical Assertion Act returned 403. The reason is accepted seal, not expiry. The tool did not run.
+
+From the stolen /tmp copy, a new Create Agent Principal and a new Assertion Act still minted. POST /check-svid of that new Assertion Act on the public host returned 403 because this store accepted a seal for that issuer pin. A stolen issuer.secret was not enough after public seal-accept.
+
+This throwaway issuer is not a standing operator store. This is not SPIRE. This is not a replica. This is not Sanctum.

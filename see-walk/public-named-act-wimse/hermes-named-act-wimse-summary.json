@@ -1,0 +1,16 @@
+{
+  "pid": "76184",
+  "same_pid": true,
+  "first_on_ramp": "x509-svid",
+  "second_on_ramp": "wimse",
+  "independent": true,
+  "unnamed_both_live": "ALLOWED",
+  "unnamed_after_first_death": "REFUSED",
+  "named_live_wimse_act_2": "ALLOWED",
+  "named_dead_first_act_1": "REFUSED",
+  "named_dead_wimse_act_2": "REFUSED",
+  "fail_closed_act_0": "REFUSED",
+  "fail_closed_missing_number": "REFUSED",
+  "fail_closed_index_not_held": "REFUSED",
+  "tool_named_live": "TOOLLIVE"
+}

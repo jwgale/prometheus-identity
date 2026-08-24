@@ -1,0 +1,13 @@
+Two-store loopback issuance-threshold birth walk files
+
+Date: 20 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts from the two-store issuance-threshold birth walk. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The two stores lived under /tmp/prometheus-threshold-two-store-a and /tmp/prometheus-threshold-two-store-b. The outside member lived under /tmp/prometheus-threshold-two-store-custody/member-two.secret.
+
+Store A listened on 127.0.0.1:18773. Store B listened on 127.0.0.1:18774. Both hosts are stopped.
+
+Store B never received a holder secret path. Holder proof on Store B was a signature over a verifier-challenge nonce. Sign stayed on Store A.
+
+Store B never received issuer.secret or the outside member secret. Birth at issuance threshold_n 2 required that outside path on the live Store A birth body.
+
+See BROWSER-WALK.md at the repository root, or ANSWERS.md in this folder.

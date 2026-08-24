@@ -1,0 +1,11 @@
+Two-store later user interface death walk files
+
+Date: 20 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts from the later user interface two-store death walk on GET /. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The two stores lived under /tmp/prometheus-later-ui-two-store-a and /tmp/prometheus-later-ui-two-store-b.
+
+Store A listened on 127.0.0.1:18775. Store B listened on 127.0.0.1:18776. Both hosts bind 127.0.0.1 only. Both hosts are stopped.
+
+A person used GET /, not GET /laboratory. Store B never received a holder secret path or a member secret path. Holder proof on Store B was a signature over a verifier-challenge nonce. Sign stayed on Store A. Store B wrote no instance record.
+
+See BROWSER-WALK.md at the repository root, or ANSWERS.md in this folder.

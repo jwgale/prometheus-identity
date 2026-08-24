@@ -1,0 +1,1 @@
+add-act --presentation-json /var/lib/prometheus-agent/presentation.json --certificate-pem /var/lib/prometheus-agent/presentation.json.svid.pem --workload-identity-token /var/lib/prometheus-agent/presentation.json --content-digest x --signature-input y --signature z

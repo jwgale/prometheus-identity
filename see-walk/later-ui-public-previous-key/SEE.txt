@@ -1,0 +1,23 @@
+Later user interface public previous-key-accept walk
+
+Date: 23 August 2026 01:46 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The throwaway issuing store lived under /tmp/prometheus-later-ui-public-previous-key-a. The stolen copy lived under /tmp/prometheus-later-ui-public-previous-key-stolen only. Both were deleted after this walk.
+
+The issuing host listened on 127.0.0.1:18808 only and is stopped after this walk. The stolen copy host listened on 127.0.0.1:18809 only and is stopped after this walk. GET / on the issuing host is the later user interface. GET / already posts POST /rotate, POST /previous-key-export, and POST /previous-key-accept. This walk did not add that path.
+
+The walk used the same HTTP JSON that GET / posts. The walk did not use prometheus CLI check verbs. The walk did not spawn AgentProcess.
+
+Create Agent Principal stayed on 127.0.0.1. POST /issuer-accept on the public host returned 200. This throwaway issuer was not already pinned. issuer.secret was not copied onto the public host.
+
+POST /runtime-check on the loopback issuing host with check_base https://check.prestigeworldwide.digital allowed an honest laboratory X.509-SVID present signed by the old issuer key. The holder secret path stayed on the issuing host. Secret bytes were not sent to the public name.
+
+After local POST /rotate with confirm rotate and kill_after_seconds 12, POST /previous-key-export returned the old public key hexadecimal and the kill date. POST /previous-key-accept on the public host returned 200. After that kill date, a following POST /runtime-check of the same present returned 403. The reason is the previous issuer key past its kill date, not expiry. A following POST /check-svid of that historical Assertion Act on the public host also returned 403 because the previous issuer key is past its kill date.
+
+A new Assertion Act signed by the current issuer key still allowed. Rotate is not seal.
+
+From the stolen /tmp copy, a new Create Agent Principal and a new Assertion Act still minted on the old key. POST /runtime-check of that new Assertion Act against the public name returned 403 because the previous issuer key is past its kill date. POST /check-svid of that new Assertion Act on the public host also returned 403. A stolen issuer.secret was not enough after public previous-key-accept and the kill date.
+
+Live GET https://check.prestigeworldwide.digital stayed check-only JSON. Live POST /runtime-check on that name stayed 403. GET /.well-known/prometheus-check names POST /previous-key-accept as an operator pin.
+
+This throwaway issuer is not a standing operator store. This is not SPIRE. This is not a replica. This is not Sanctum.

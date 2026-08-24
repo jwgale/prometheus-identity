@@ -1,0 +1,10 @@
+{
+  "parent": [
+    "certificate_pem",
+    "presentation_json"
+  ],
+  "child": [
+    "certificate_pem",
+    "presentation_json"
+  ]
+}

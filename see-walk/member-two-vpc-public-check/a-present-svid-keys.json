@@ -1,0 +1,11 @@
+{
+  "keys": [
+    "message",
+    "presentation",
+    "presentation_path",
+    "spiffe_uri",
+    "svid_path",
+    "svid_signer"
+  ],
+  "svid_signer": "laboratory-ed25519-envelope"
+}

@@ -1,0 +1,1 @@
+sshfs remounted ubuntu@10.43.1.186:/home/ubuntu/member-two-custody on /home/jason/Projects/prometheus-lab-vpc/mnt-member-two

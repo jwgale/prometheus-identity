@@ -1,0 +1,13 @@
+Public add-act durable agent process walk
+
+Date: 23 August 2026.
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The issuing store lived under /tmp/prometheus-public-add-act-a.
+
+Create Agent Principal ran on the operator machine and bound 127.0.0.1 only. Spawn of a wider child was refused because that audience is above the authorization limit. Spawn wrote a narrower child. The durable agent process ran on Hermes at 52.91.253.34. The verifier is https://check.prestigeworldwide.digital. Hermes held the parent Assertion Act, then the child Assertion Act after add-act, and the holder keys. Hermes did not hold issuer.secret. Hermes is not a second identity store.
+
+prometheus runtime-check agent-process on Hermes started with the parent X.509-SVID Assertion Act, used holder-sign on that machine, and the public check name. The first tool line on process identifier 57668 printed ALLOWED and ran the tool. An honest add-act of the narrower child printed ADDED on that same process identifier. A later tool line printed ALLOWED only after both documented checks allowed, and then ran the tool. After parent Decommission by kill accept, a later tool line on the same process identifier printed REFUSED and did not run the tool. Death wins on the added child by parent cascade. The refuse names accepted kill. The process did not restart.
+
+A mixed on-ramp add-act line printed REFUSED. An add-act line that named a holder secret path printed REFUSED. Those fail-closed adds used the same binary on Hermes.
+
+This is not SPIRE. This is not a replica. This is not a public listener for birth. This is not Sanctum.

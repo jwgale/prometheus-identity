@@ -1,0 +1,5 @@
+issuing GET / is the later user interface
+listen 127.0.0.1:18814
+content_type text/html; charset=utf-8
+html_bytes 91534
+markers id="check-base", https://check.prestigeworldwide.digital, Create Agent Principal, /runtime-check, /well-known-follow, /operator-pin, function documentedPinPath(, function followWellKnownThenPin(, followWellKnownThenPin("kill-accept", The holder secret path stays on this host, The path is not sent to the check base

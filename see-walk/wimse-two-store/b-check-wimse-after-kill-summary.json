@@ -1,0 +1,5 @@
+{
+  "result": "refused",
+  "instance_id": "01M0FTTGG46MS29SYXNJ2KWMX3",
+  "reason": "The verification failed: This store accepted a kill for this instance. Present verify is refused after kill accept. Death travels as a kill bundle. The check fails closed."
+}

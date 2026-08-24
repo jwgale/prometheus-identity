@@ -1,0 +1,23 @@
+{
+  "/runtime-check": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: This host is check-only. Create Agent Principal and mint paths are refused. The check fails closed.",
+      "result": "refused"
+    }
+  },
+  "/operator-pin": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: This host is check-only. Create Agent Principal and mint paths are refused. The check fails closed.",
+      "result": "refused"
+    }
+  },
+  "/well-known-follow": {
+    "http_status": 403,
+    "body": {
+      "reason": "The verification failed: This host is check-only. Create Agent Principal and mint paths are refused. The check fails closed.",
+      "result": "refused"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "instances": [
+    {
+      "instance_id": "01M0K658AMW435S0084JVDEXEB",
+      "status": "live",
+      "capability_ids": [
+        "01M0K658AMV0D5NFM07DX3K7ST"
+      ],
+      "agent_type_id": "01M0K658AJCC5SBTG2CGFM4NRH"
+    },
+    {
+      "instance_id": "01M0K658AVK6452E9ZY4S8FJGR",
+      "parent_instance_id": "01M0K658AMW435S0084JVDEXEB",
+      "status": "revoked",
+      "capability_ids": [
+        "01M0K658AWTP90PQ1M8JHXT95W"
+      ],
+      "agent_type_id": "01M0K658AJCC5SBTG2CGFM4NRH"
+    }
+  ]
+}

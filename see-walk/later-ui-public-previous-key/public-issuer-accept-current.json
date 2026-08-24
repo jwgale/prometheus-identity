@@ -1,0 +1,6 @@
+{
+  "http_status": 200,
+  "current_key_pinned": true,
+  "public_key_hex_length": 3904,
+  "note": "Rotate is not seal. The current issuer key may be pinned so a new present can allow."
+}

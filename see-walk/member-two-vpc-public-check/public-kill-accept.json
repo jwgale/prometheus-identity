@@ -1,0 +1,10 @@
+{
+  "http_status": 200,
+  "this_instance_accepted": true,
+  "this_capability_accepted": true,
+  "keys": [
+    "accepted_killed_capability_ids",
+    "accepted_killed_instance_ids",
+    "accepted_revoke_identifiers"
+  ]
+}

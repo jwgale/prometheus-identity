@@ -1,0 +1,45 @@
+total 10448
+-rw-rw-r-- 1 ubuntu ubuntu      296 Aug 23 05:00 add-act-honest.line
+-rw-rw-r-- 1 ubuntu ubuntu      266 Aug 23 05:00 add-act-mix.line
+-rw-rw-r-- 1 ubuntu ubuntu      299 Aug 23 05:05 add-act-second.line
+-rw-rw-r-- 1 ubuntu ubuntu      222 Aug 23 05:00 add-act-secret.line
+prw------- 1 ubuntu ubuntu        0 Aug 23 05:22 agent-process.in
+-rw-rw-r-- 1 ubuntu ubuntu        6 Aug 23 05:21 agent-process.pid
+-rw-rw-r-- 1 ubuntu ubuntu      172 Aug 23 05:22 agent-process.stderr
+-rw-rw-r-- 1 ubuntu ubuntu       38 Aug 23 05:22 agent-process.stdout
+-rw-r--r-- 1 ubuntu ubuntu       54 Aug 23 05:21 child-content_digest
+-rw------- 1 ubuntu ubuntu       64 Aug 23 05:20 child-holder.secret
+-rw-r--r-- 1 ubuntu ubuntu    11248 Aug 23 05:21 child-presentation.json
+-rw-r--r-- 1 ubuntu ubuntu      485 Aug 23 05:01 child-presentation.json.svid.pem
+-rw-r--r-- 1 ubuntu ubuntu       94 Aug 23 05:21 child-signature
+-rw-r--r-- 1 ubuntu ubuntu       50 Aug 23 05:21 child-signature_input
+-rw-r--r-- 1 ubuntu ubuntu      520 Aug 23 05:21 child-workload_identity_token
+-rw-r--r-- 1 ubuntu ubuntu       54 Aug 23 04:51 content_digest
+-rw-rw-r-- 1 ubuntu ubuntu        6 Aug 23 05:21 fifo-keeper.pid
+-rw-rw-r-- 1 ubuntu ubuntu    11106 Aug 23 05:05 first-presentation.json
+-rw-rw-r-- 1 ubuntu ubuntu      485 Aug 23 05:05 first-presentation.json.svid.pem
+-rw-rw-r-- 1 ubuntu ubuntu      472 Aug 23 05:20 hermes-send-wimse-child-add-act.sh
+-rwxr-xr-x 1 ubuntu ubuntu     1253 Aug 23 04:57 hermes-start-add-act-agent-process.sh
+-rwxr-xr-x 1 ubuntu ubuntu     1257 Aug 23 05:19 hermes-start-add-act-wimse-child.sh
+-rwxr-xr-x 1 ubuntu ubuntu     1317 Aug 23 05:05 hermes-start-named-act.sh
+-rwxr-xr-x 1 ubuntu ubuntu     1596 Aug 23 04:51 hermes-start-wimse-agent-process.sh
+-rw------- 1 ubuntu ubuntu       64 Aug 23 05:19 holder.secret
+-rw-r--r-- 1 ubuntu ubuntu    11106 Aug 23 05:21 presentation.json
+-rw-r--r-- 1 ubuntu ubuntu      485 Aug 23 05:21 presentation.json.svid.pem
+-rw-r--r-- 1 ubuntu ubuntu    11106 Aug 23 04:51 presentation.svid.json
+-rwxr-xr-x 1 ubuntu ubuntu 10499280 Aug 23 05:19 prometheus
+-rw------- 1 ubuntu ubuntu       64 Aug 23 05:05 second-holder.secret
+-rw-rw-r-- 1 ubuntu ubuntu    11106 Aug 23 05:05 second-presentation.json
+-rw-rw-r-- 1 ubuntu ubuntu      485 Aug 23 05:05 second-presentation.json.svid.pem
+-rw-r--r-- 1 ubuntu ubuntu       94 Aug 23 04:51 signature
+-rw-r--r-- 1 ubuntu ubuntu       50 Aug 23 04:51 signature_input
+-rw-rw-r-- 1 ubuntu ubuntu       19 Aug 23 05:21 tool-after-add.txt
+-rw-rw-r-- 1 ubuntu ubuntu        9 Aug 23 05:21 tool-allow.txt
+-rw-rw-r-- 1 ubuntu ubuntu        9 Aug 23 05:05 tool-both.txt
+-rw-rw-r-- 1 ubuntu ubuntu        9 Aug 23 05:05 tool-named-live.txt
+-rw-r--r-- 1 ubuntu ubuntu      520 Aug 23 04:51 workload_identity_token
+---
+no-issuer-secret
+no-biscuit-secret
+holder.secret mode=600
+child-holder.secret mode=600

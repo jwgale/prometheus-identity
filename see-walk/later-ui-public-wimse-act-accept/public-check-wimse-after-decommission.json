@@ -1,0 +1,18 @@
+{
+  "http_status": 403,
+  "result": "refused",
+  "reason": "The verification failed: This store accepted a kill for this instance. Present verify is refused after kill accept. Death travels as a kill bundle. The check fails closed.",
+  "request_keys": [
+    "presentation_json",
+    "workload_identity_token",
+    "content_digest",
+    "intent",
+    "audience",
+    "holder_proof",
+    "challenge_nonce",
+    "on_behalf_of",
+    "signature_input",
+    "signature"
+  ],
+  "holder_secret_bytes_sent_to_public_name": false
+}

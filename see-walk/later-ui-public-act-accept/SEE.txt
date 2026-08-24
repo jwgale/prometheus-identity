@@ -1,0 +1,27 @@
+Later user interface public act-accept walk
+
+Date: 23 August 2026 01:56 America/Chicago
+
+This folder is for Jason Gale. These files are public records and artifacts. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The throwaway issuing store lived under /tmp/prometheus-later-ui-public-act-accept-a. That store was deleted after this walk.
+
+The issuing host listened on 127.0.0.1:18812 only and is stopped after this walk. GET / on that host is the later user interface. GET / already posts POST /act-export and POST /act-accept. This walk did not add that path.
+
+The walk used the same HTTP JSON that GET / posts. The walk did not use prometheus CLI check verbs. The walk did not spawn AgentProcess.
+
+Live GET https://check.prestigeworldwide.digital/.well-known/prometheus-check names bind check.prestigeworldwide.digital and the existing check paths. That document names POST /seal-accept and POST /previous-key-accept as operator pins. That document does not name POST /act-accept. Live POST /act-accept on the public name is still an allowed operator pin. An empty body returned HTTP 400 missing field receipt. That is not check-only 403. Live POST /act-export on the public name stayed 403 check-only.
+
+Create Agent Principal stayed on 127.0.0.1. POST /issuer-accept on the public host returned 200. This throwaway issuer was not already pinned. issuer.secret was not copied onto the public host.
+
+POST /runtime-check on the loopback issuing host with check_base https://check.prestigeworldwide.digital allowed. The holder secret path stayed on the issuing host. Secret bytes were not sent to the public name. The public allow does not leave a receipt on the issuing store. The issuing store then posted POST /check of that same act so the receipt stayed on the issuing store.
+
+POST /act-export on the issuing host returned receipt, proof, and tree_head. POST /act-accept on the public host returned 200 accepted. Public GET /instances stayed 403 check-only. Public POST /act-export stayed 403 check-only. The public host wrote no instance record.
+
+After Decommission, POST /kill-export on the issuing host returned the three public artifacts. POST /kill-accept on the public host returned 200. A following POST /runtime-check of the same present returned 403. The reason is accepted kill, not expiry and not a missing inode.
+
+A following POST /check-svid of that same historical Assertion Act on the public host also returned 403 because this store accepted a kill.
+
+Live public pin leftovers on this host refused. Truncated issuer public key hexadecimal, empty public_key_hex, and a short hexadecimal that is not an identity root were refused on POST /issuer-accept. Truncated hexadecimal was refused on POST /previous-key-accept. Empty artifacts were refused on POST /act-accept, POST /kill-accept, and POST /seal-accept. Those refuses were already fail-closed. This walk did not add a rust test for a live allow hole.
+
+Live GET https://check.prestigeworldwide.digital stayed check-only JSON. Live POST /runtime-check on that name stayed 403.
+
+This throwaway issuer is not a standing operator store. This is not SPIRE. This is not a replica. This is not Sanctum.

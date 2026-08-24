@@ -1,0 +1,11 @@
+{
+  "http_status": 200,
+  "pin": "act-accept",
+  "resolved_path": "/act-accept",
+  "result": "accepted",
+  "keys": [
+    "result"
+  ],
+  "wrote_instance": false,
+  "hardcoded_public_act_accept": false
+}

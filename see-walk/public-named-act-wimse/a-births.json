@@ -1,0 +1,7 @@
+{
+  "first": "01M0PHJGY3NY803S5HR2X5JSXS",
+  "second": "01M0PHJGYCBSA5PAES6B6XBVFR",
+  "independent": true,
+  "first_on_ramp": "x509-svid",
+  "second_on_ramp": "wimse"
+}

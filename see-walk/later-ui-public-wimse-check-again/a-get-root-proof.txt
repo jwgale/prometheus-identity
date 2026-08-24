@@ -1,0 +1,5 @@
+issuing GET / is the later user interface with WIMSE Check again
+listen 127.0.0.1:18824
+content_type text/html; charset=utf-8
+html_bytes 91534
+markers id="check-base", https://check.prestigeworldwide.digital, Create Agent Principal, /runtime-check, id="check-again", Check again, function checkAgain(, function submitCheckWimse(, lastCheckKind === "wimse", This page does not store ALLOWED, Each click hits the host, /well-known-follow, /operator-pin, id="emit-wimse", workload-identity-token

@@ -1,0 +1,35 @@
+{
+  "parent": {
+    "http_status": 200,
+    "result": "allowed",
+    "reason": null,
+    "keys": [
+      "audience",
+      "capability_id",
+      "challenge_nonce",
+      "instance_id",
+      "intent",
+      "on_behalf_of",
+      "reason",
+      "result"
+    ]
+  },
+  "child": {
+    "http_status": 200,
+    "result": "allowed",
+    "reason": null,
+    "keys": [
+      "audience",
+      "capability_id",
+      "challenge_nonce",
+      "instance_id",
+      "intent",
+      "on_behalf_of",
+      "reason",
+      "result"
+    ]
+  },
+  "check_both_allowed": true,
+  "cached_allowed": false,
+  "two_runtime_check_hits": true
+}

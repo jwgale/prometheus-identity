@@ -1,0 +1,16 @@
+{
+  "http_status": 200,
+  "result": "allowed",
+  "keys": [
+    "audience",
+    "capability_id",
+    "challenge_nonce",
+    "instance_id",
+    "intent",
+    "on_behalf_of",
+    "reason",
+    "result"
+  ],
+  "holder_secret_bytes_sent_to_public_name": false,
+  "member_secret_bytes_sent_to_public_name": false
+}

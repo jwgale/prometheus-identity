@@ -1,0 +1,1 @@
+fusermount hid /home/jason/Projects/prometheus-lab-vpc/mnt-member-two/member-two.secret. The VPC custody file stayed on prometheus-member-two.
