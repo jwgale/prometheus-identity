@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prometheus — Executive brief on agent identity</title>
+<style>
+  :root {
+    --ink: #1c1914;
+    --muted: #5c564c;
+    --paper: #f4efe6;
+    --card: #fffdf8;
+    --rule: #d8cfc0;
+    --copper: #9a4d1a;
+    --copper-soft: #c47a45;
+    --moss: #3d5a40;
+    --blood: #8b2e2e;
+    --box: #2a2620;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", serif;
+    font-size: 16.5px;
+    line-height: 1.55;
+  }
+  @page { size: letter; margin: 0.72in 0.78in; }
+  .page { max-width: 820px; margin: 0 auto; padding: 48px 28px 80px; }
+  header.cover {
+    padding: 28px 0 36px;
+    border-bottom: 3px solid var(--copper);
+    margin-bottom: 36px;
+  }
+  .kicker {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--copper);
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-weight: 600;
+    font-size: 42px;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+  }
+  .lede {
+    font-size: 20px;
+    line-height: 1.4;
+    color: var(--muted);
+    margin: 0 0 22px;
+    max-width: 38em;
+  }
+  .meta {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  h2 {
+    font-size: 26px;
+    line-height: 1.2;
+    margin: 42px 0 12px;
+    padding-top: 8px;
+    break-after: avoid;
+  }
+  h3 {
+    font-size: 18px;
+    margin: 26px 0 8px;
+    color: var(--box);
+    break-after: avoid;
+  }
+  p { margin: 0 0 12px; max-width: 40em; }
+  ol.plain, ul.plain {
+    margin: 0 0 16px;
+    padding-left: 1.2em;
+    max-width: 40em;
+  }
+  li { margin: 0 0 6px; }
+  figure {
+    margin: 22px 0 28px;
+    break-inside: avoid;
+  }
+  figure svg { width: 100%; height: auto; display: block; background: var(--card); border: 1px solid var(--rule); }
+  figcaption {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  .callout {
+    background: var(--card);
+    border-left: 4px solid var(--copper);
+    padding: 14px 18px;
+    margin: 18px 0 22px;
+    max-width: 42em;
+    break-inside: avoid;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .gap-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+    margin: 16px 0 28px;
+    break-inside: avoid;
+  }
+  .gap-table th, .gap-table td {
+    text-align: left;
+    vertical-align: top;
+    padding: 10px 12px;
+    border-top: 1px solid var(--rule);
+  }
+  .gap-table th {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--copper);
+    font-weight: 600;
+    border-top: none;
+  }
+  footer {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  @media print {
+    body { background: white; }
+    .page { padding: 0; max-width: none; }
+    header.cover { margin-bottom: 24px; }
+    h2 { page-break-before: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+<header class="cover">
+  <p class="kicker">Executive brief · Laboratory identity kernel</p>
+  <h1>Prometheus</h1>
+  <p class="lede">Create Agent Principal. Assertion Act. A consumer can check that Assertion Act. Decommission. Those four acts are the product.</p>
+  <p class="meta">21 August 2026 · Names locked 21 August 2026 · Prepared for Jason Gale · Laboratory side project. Not a company product.</p>
+</header>
+
+<h2>1. The claim in one page</h2>
+<p>A classical identity provider does five later steps. A directory creates a name. A login proves a human. Groups or roles grant authorization after that login. A review governs that grant. A vault holds a standing secret.</p>
+<p>That order assumes a person who can attest intent. A software agent cannot do that. The grant arrives too late. The secret stays too long. A name lookup is not proof of one act.</p>
+<p>Prometheus inverts the order. Create Agent Principal is the privilege. Assertion Act is a document of one act. Decommission is portable. A child is a narrower act, not a role in a catalog.</p>
+<div class="callout">
+  <p>The kernel is testable. This brief does not say the bet is won. Human identity replacement is not this laboratory.</p>
+</div>
+
+<h2>2. Why classical identity fails</h2>
+<p>Classical identity was built for a human. The human has a name in a directory. The human proves that name with a login. After login, a group or a role becomes the grant. A later review asks whether that grant is still right. A vault keeps a password or a key so the next login can happen.</p>
+<p>Each step is later than Create Agent Principal. The system first creates an empty principal. Intent is attached afterwards. Decommission is a disable flag in the same directory, or an expiry on a certificate. A second party that is not a replica of that directory cannot be sure the principal is decommissioned.</p>
+
+<figure>
+<svg viewBox="0 0 760 210" role="img" aria-label="Five later steps of a classical identity provider">
+  <rect width="760" height="210" fill="#fffdf8"/>
+  <text x="28" y="32" fill="#9a4d1a" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="1.5">CLASSICAL ORDER</text>
+  <text x="28" y="52" fill="#5c564c" font-family="Palatino, Georgia, serif" font-size="14">The grant is after login. Intent is not in Create Agent Principal.</text>
+  <!-- boxes -->
+  <g font-family="Palatino, Georgia, serif" font-size="13" fill="#1c1914">
+    <rect x="24" y="78" width="124" height="78" rx="4" fill="#fffdf8" stroke="#9a4d1a" stroke-width="1.5"/>
+    <text x="86" y="112" text-anchor="middle">1. Name</text>
+    <text x="86" y="132" text-anchor="middle" font-size="11" fill="#5c564c">directory</text>
+
+    <rect x="168" y="78" width="124" height="78" rx="4" fill="#fffdf8" stroke="#9a4d1a" stroke-width="1.5"/>
+    <text x="230" y="112" text-anchor="middle">2. Login</text>
+    <text x="230" y="132" text-anchor="middle" font-size="11" fill="#5c564c">prove a human</text>
+
+    <rect x="312" y="78" width="124" height="78" rx="4" fill="#fffdf8" stroke="#9a4d1a" stroke-width="1.5"/>
+    <text x="374" y="112" text-anchor="middle">3. Groups</text>
+    <text x="374" y="132" text-anchor="middle" font-size="11" fill="#5c564c">grant after login</text>
+
+    <rect x="456" y="78" width="124" height="78" rx="4" fill="#fffdf8" stroke="#9a4d1a" stroke-width="1.5"/>
+    <text x="518" y="112" text-anchor="middle">4. Review</text>
+    <text x="518" y="132" text-anchor="middle" font-size="11" fill="#5c564c">govern the grant</text>
+
+    <rect x="600" y="78" width="136" height="78" rx="4" fill="#fffdf8" stroke="#9a4d1a" stroke-width="1.5"/>
+    <text x="668" y="112" text-anchor="middle">5. Vault</text>
+    <text x="668" y="132" text-anchor="middle" font-size="11" fill="#5c564c">standing secret</text>
+  </g>
+  <g stroke="#9a4d1a" stroke-width="1.5" fill="#9a4d1a">
+    <path d="M148 117 L168 117" />
+    <path d="M292 117 L312 117" />
+    <path d="M436 117 L456 117" />
+    <path d="M580 117 L600 117" />
+  </g>
+  <text x="28" y="192" fill="#8b2e2e" font-family="Palatino, Georgia, serif" font-size="13">Failure: a software agent cannot attest intent the way a human can. The order fails at Create Agent Principal.</text>
+</svg>
+<figcaption>Figure 1. Classical identity is five later steps. The privilege is not Create Agent Principal.</figcaption>
+</figure>
+
+<p>Three holes follow.</p>
+<ol class="plain">
+  <li>Authorization is a group after login. It is not a capability written at Create Agent Principal.</li>
+  <li>A standing secret outlives the act. The next caller can reuse it.</li>
+  <li>Decommission lives in the issuing directory. A verifier that does not copy that directory cannot refuse a later Assertion Act.</li>
+</ol>
+
+<h2>3. Why an ecosystem grows around that stack</h2>
+<p>The five later steps are incomplete on their own. Each hole grows a later product.</p>
+<p>The directory is empty of intent, so a connector copies groups into every application. The grant is wide, so an access-review product asks a human to recertify. The standing secret is dangerous, so a secrets broker rotates it. The workload still needs a name on the wire, so a mesh mints a short-lived certificate for a name. The certificate expiry is then treated as if it were Decommission. It is not Decommission. A new certificate can be minted for the same name.</p>
+
+<figure>
+<svg viewBox="0 0 760 280" role="img" aria-label="Later products that grow around the classical identity stack">
+  <rect width="760" height="280" fill="#fffdf8"/>
+  <text x="28" y="32" fill="#9a4d1a" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="1.5">LATER PRODUCTS AROUND THE SAME ORDER</text>
+  <rect x="250" y="58" width="260" height="56" rx="4" fill="#1c1914"/>
+  <text x="380" y="82" text-anchor="middle" fill="#f4efe6" font-family="Palatino, Georgia, serif" font-size="15">Classical identity core</text>
+  <text x="380" y="100" text-anchor="middle" fill="#d8cfc0" font-family="Palatino, Georgia, serif" font-size="12">name, then login, then groups</text>
+  <g font-family="Palatino, Georgia, serif" font-size="13" fill="#1c1914">
+    <rect x="28" y="160" width="160" height="70" rx="4" stroke="#5c564c" fill="#fffdf8"/>
+    <text x="108" y="190" text-anchor="middle">Directory connector</text>
+    <text x="108" y="210" text-anchor="middle" font-size="11" fill="#5c564c">copy the name outward</text>
+    <rect x="208" y="160" width="160" height="70" rx="4" stroke="#5c564c" fill="#fffdf8"/>
+    <text x="288" y="190" text-anchor="middle">Access review</text>
+    <text x="288" y="210" text-anchor="middle" font-size="11" fill="#5c564c">ask a human later</text>
+    <rect x="388" y="160" width="160" height="70" rx="4" stroke="#5c564c" fill="#fffdf8"/>
+    <text x="468" y="190" text-anchor="middle">Secrets broker</text>
+    <text x="468" y="210" text-anchor="middle" font-size="11" fill="#5c564c">rotate a standing secret</text>
+    <rect x="568" y="160" width="168" height="70" rx="4" stroke="#5c564c" fill="#fffdf8"/>
+    <text x="652" y="190" text-anchor="middle">Workload mesh</text>
+    <text x="652" y="210" text-anchor="middle" font-size="11" fill="#5c564c">mint a name again</text>
+  </g>
+  <g stroke="#5c564c" stroke-width="1" fill="none">
+    <path d="M380 114 L108 160"/>
+    <path d="M380 114 L288 160"/>
+    <path d="M380 114 L468 160"/>
+    <path d="M380 114 L652 160"/>
+  </g>
+  <text x="28" y="258" fill="#5c564c" font-family="Palatino, Georgia, serif" font-size="13">These products assume the same order. They do not invert Create Agent Principal.</text>
+</svg>
+<figcaption>Figure 2. Later products grow because the core never wrote intent, Decommission, and an Assertion Act at Create Agent Principal.</figcaption>
+</figure>
+
+<p>That ecosystem is rational for humans. It is the wrong factory for software agents. An agent does not recertify a group. An agent does not rotate a password. An agent that receives a mesh name still has no portable Decommission and no intent at Create Agent Principal.</p>
+
+<h2>4. Why a software agent needs a different order</h2>
+<p>A software agent acts without a person in the path who can attest intent. If Create Agent Principal is only a name, the agent can later obtain a wide group, keep a standing secret, and keep acting after a human believes it was disabled.</p>
+<p>The agent needs four properties that the classical stack does not give at Create Agent Principal.</p>
+<ol class="plain">
+  <li>The privilege is Create Agent Principal. Intent and destination are set then. The instance cannot raise its own authorization limit.</li>
+  <li>Each act is an Assertion Act document. A consumer verifies that document. The consumer does not look up a name and enumerate groups.</li>
+  <li>Decommission can travel to a verifier that does not copy the identity store.</li>
+  <li>A child is a narrower act. A child cannot exceed its parent. Spawn is not a role catalog.</li>
+</ol>
+<p>Records persist. Bearer credentials do not. The holder key proves possession for one challenge. The holder key is not the instance name. A short certificate life is not Decommission.</p>
+
+<h2>5. What Prometheus inverts</h2>
+<figure>
+<svg viewBox="0 0 760 220" role="img" aria-label="Prometheus inverts the order into four acts">
+  <rect width="760" height="220" fill="#fffdf8"/>
+  <text x="28" y="32" fill="#9a4d1a" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="1.5">PROMETHEUS ORDER</text>
+  <g font-family="Palatino, Georgia, serif" font-size="14" fill="#1c1914">
+    <rect x="24" y="56" width="166" height="110" rx="4" fill="#3d5a40"/>
+    <text x="107" y="82" text-anchor="middle" fill="#f4efe6" font-size="13">Create Agent</text>
+    <text x="107" y="98" text-anchor="middle" fill="#f4efe6" font-size="13">Principal</text>
+    <text x="107" y="112" text-anchor="middle" fill="#dce8dd" font-size="12">instance</text>
+    <text x="107" y="130" text-anchor="middle" fill="#dce8dd" font-size="12">capability</text>
+    <text x="107" y="148" text-anchor="middle" fill="#dce8dd" font-size="12">Decommission path</text>
+
+    <rect x="206" y="56" width="166" height="110" rx="4" fill="#9a4d1a"/>
+    <text x="289" y="88" text-anchor="middle" fill="#f4efe6" font-size="14">Assertion Act</text>
+    <text x="289" y="112" text-anchor="middle" fill="#f3e2d4" font-size="12">one-act document</text>
+    <text x="289" y="130" text-anchor="middle" fill="#f3e2d4" font-size="12">not a name lookup</text>
+    <text x="289" y="148" text-anchor="middle" fill="#f3e2d4" font-size="12">holder proof</text>
+
+    <rect x="388" y="56" width="166" height="110" rx="4" fill="#2a2620"/>
+    <text x="471" y="88" text-anchor="middle" fill="#f4efe6">Check</text>
+    <text x="471" y="112" text-anchor="middle" fill="#d8cfc0" font-size="12">consumer verifies</text>
+    <text x="471" y="130" text-anchor="middle" fill="#d8cfc0" font-size="12">not a directory</text>
+    <text x="471" y="148" text-anchor="middle" fill="#d8cfc0" font-size="12">allow or refuse</text>
+
+    <rect x="570" y="56" width="166" height="110" rx="4" fill="#8b2e2e"/>
+    <text x="653" y="88" text-anchor="middle" fill="#f4efe6" font-size="14">Decommission</text>
+    <text x="653" y="112" text-anchor="middle" fill="#f0d6d6" font-size="12">signed Decommission bundle</text>
+    <text x="653" y="130" text-anchor="middle" fill="#f0d6d6" font-size="12">travels without copy</text>
+    <text x="653" y="148" text-anchor="middle" fill="#f0d6d6" font-size="12">later Assertion Act refused</text>
+  </g>
+  <text x="28" y="200" fill="#5c564c" font-family="Palatino, Georgia, serif" font-size="13">A narrower child can be written from a live parent. The child cannot exceed the parent authorization limit.</text>
+</svg>
+<figcaption>Figure 3. The product is four acts. Public key certificates are a presentation on-ramp. They are not the identity record.</figcaption>
+</figure>
+
+<p>Five identity records exist: agent type, instance, capability, chain, and issuer. There is no sixth identity record. Five kernel system calls exist: mint, verify, attenuate, present, and kill. Create Agent Principal and spawn sit on mint. The laboratory path names stay mapped. Check sits on verify.</p>
+<p>The identity root is Module-Lattice Digital Signature Algorithm. A new Create Agent Principal write refuses a classical-only root. A laboratory capability envelope may travel on the wire. That envelope is not the identity record.</p>
+
+<h2>6. Authorization and Decommission flows</h2>
+<h3>One-store act</h3>
+<p>An operator runs Create Agent Principal for an agent type. The write sets intent and destination. The agent produces an Assertion Act and proves holder possession for one challenge. A check host verifies the document and allows or refuses the tool action. The check host is not a directory. After Decommission, a historical Assertion Act is refused. Unknown does not mean live. There is no force-allow.</p>
+
+<figure>
+<svg viewBox="0 0 760 200" role="img" aria-label="One-store Create Agent Principal, Assertion Act, check, and Decommission">
+  <rect width="760" height="200" fill="#fffdf8"/>
+  <text x="28" y="28" fill="#9a4d1a" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="1.5">ONE STORE · AUTHORIZATION FLOW</text>
+  <g font-family="Palatino, Georgia, serif" font-size="13">
+    <rect x="20" y="50" width="130" height="54" rx="4" fill="#3d5a40"/>
+    <text x="85" y="74" text-anchor="middle" fill="#f4efe6" font-size="11">Create Agent</text>
+    <text x="85" y="90" text-anchor="middle" fill="#f4efe6" font-size="11">Principal</text>
+    <rect x="170" y="50" width="130" height="54" rx="4" fill="#9a4d1a"/>
+    <text x="235" y="82" text-anchor="middle" fill="#f4efe6" font-size="12">Assertion Act</text>
+    <rect x="320" y="50" width="130" height="54" rx="4" fill="#2a2620"/>
+    <text x="385" y="82" text-anchor="middle" fill="#f4efe6">Check</text>
+    <rect x="470" y="50" width="120" height="54" rx="4" fill="#3d5a40"/>
+    <text x="530" y="82" text-anchor="middle" fill="#f4efe6">Allow</text>
+    <rect x="610" y="50" width="130" height="54" rx="4" fill="#8b2e2e"/>
+    <text x="675" y="82" text-anchor="middle" fill="#f4efe6">Or refuse</text>
+  </g>
+  <path d="M150 77 L170 77" stroke="#9a4d1a" stroke-width="1.5"/>
+  <path d="M300 77 L320 77" stroke="#9a4d1a" stroke-width="1.5"/>
+  <path d="M450 77 L470 77" stroke="#3d5a40" stroke-width="1.5"/>
+  <path d="M590 77 L610 77" stroke="#8b2e2e" stroke-width="1.5"/>
+  <text x="28" y="140" fill="#1c1914" font-family="Palatino, Georgia, serif" font-size="14">After Decommission, the same historical Assertion Act is refused. Short certificate life is not Decommission.</text>
+  <text x="28" y="164" fill="#5c564c" font-family="Palatino, Georgia, serif" font-size="13">Holder proof is a signature over one challenge. The holder key is not the instance name.</text>
+  <text x="28" y="186" fill="#5c564c" font-family="Palatino, Georgia, serif" font-size="13">A child spawn must stay inside the parent intent and destination.</text>
+</svg>
+<figcaption>Figure 4. Check sits on verify. The host allows or refuses one Assertion Act. Decommission ends the principal.</figcaption>
+</figure>
+
+<h3>Two-store portable Decommission</h3>
+<p>Store A issues. Store B verifies. Store B does not mint. Store B does not receive issuer secrets. Store B pins the issuer public key. Store B issues a verifier challenge. Store A signs that challenge with the holder key. Store B checks the Assertion Act with the holder signature. An honest Assertion Act allows. Store A exports a signed Decommission bundle. Store B accepts that bundle and writes no instance record. A later check of the same historical Assertion Act is refused. Decommission traveled. The identity store was not copied.</p>
+
+<figure>
+<svg viewBox="0 0 760 320" role="img" aria-label="Two-store portable Decommission without copying the identity store">
+  <rect width="760" height="320" fill="#fffdf8"/>
+  <text x="28" y="28" fill="#9a4d1a" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="1.5">TWO STORES · PORTABLE DECOMMISSION</text>
+  <rect x="28" y="48" width="320" height="230" rx="6" fill="#fffdf8" stroke="#d8cfc0"/>
+  <text x="188" y="74" text-anchor="middle" font-family="Palatino, Georgia, serif" font-size="16" fill="#1c1914">Store A · issuer</text>
+  <rect x="412" y="48" width="320" height="230" rx="6" fill="#fffdf8" stroke="#d8cfc0"/>
+  <text x="572" y="74" text-anchor="middle" font-family="Palatino, Georgia, serif" font-size="16" fill="#1c1914">Store B · verifier</text>
+  <g font-family="Palatino, Georgia, serif" font-size="13" fill="#1c1914">
+    <text x="48" y="108">Create Agent Principal and Assertion Act</text>
+    <text x="48" y="132">Sign holder challenge</text>
+    <text x="48" y="156">Local Decommission</text>
+    <text x="48" y="180">Export Decommission bundle</text>
+    <text x="48" y="220" fill="#5c564c">No replica protocol</text>
+    <text x="48" y="244" fill="#5c564c">Secrets stay on A</text>
+    <text x="432" y="108">Pin issuer public key</text>
+    <text x="432" y="132">Issue verifier challenge</text>
+    <text x="432" y="156">Check Assertion Act · allow</text>
+    <text x="432" y="180">Accept Decommission bundle</text>
+    <text x="432" y="220" fill="#8b2e2e">Later Assertion Act · refuse</text>
+    <text x="432" y="244" fill="#5c564c">No instance written</text>
+  </g>
+  <path d="M348 128 L412 128" stroke="#9a4d1a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M348 176 L412 176" stroke="#8b2e2e" stroke-width="1.5"/>
+  <text x="28" y="304" fill="#5c564c" font-family="Palatino, Georgia, serif" font-size="13">Issuer seal and previous-key kill travel the same way: public artifacts, verifier state on the issuer record, no sixth identity record.</text>
+</svg>
+<figcaption>Figure 5. A verifier that is not a replica can refuse after Decommission. That is portable Decommission.</figcaption>
+</figure>
+
+<h3>Agent runtime before a tool</h3>
+<p>A laboratory runtime follows one well-known check document on the loopback address. The runtime requests a verifier challenge, posts the documented check with a caller-supplied holder signature, and exits allowed or refused. The runtime does not read holder secrets. The runtime is not an issuer. The runtime is not a directory. After Decommission accept, the same verb exits refused.</p>
+
+<h2>7. How this closes the gaps</h2>
+<table class="gap-table">
+  <thead>
+    <tr>
+      <th>Classical hole</th>
+      <th>Prometheus close</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Create Agent Principal is only a name. Intent arrives later as a group.</td>
+      <td>One Create Agent Principal write holds the instance, the first capability, the holder key, and the Decommission path. Authorization limit is set then.</td>
+    </tr>
+    <tr>
+      <td>A consumer looks up a name and enumerates groups.</td>
+      <td>A consumer verifies an Assertion Act. The consumer is a check, not a directory.</td>
+    </tr>
+    <tr>
+      <td>A standing secret outlives the act.</td>
+      <td>Records persist. Bearer credentials do not. Holder proof is one challenge.</td>
+    </tr>
+    <tr>
+      <td>Decommission lives only in the issuing directory.</td>
+      <td>A signed Decommission bundle travels. A verifier accepts it and writes no instance record.</td>
+    </tr>
+    <tr>
+      <td>Certificate expiry is treated as Decommission.</td>
+      <td>Short certificate life is not Decommission. Decommission ends the principal.</td>
+    </tr>
+    <tr>
+      <td>A child is a role copy.</td>
+      <td>Spawn writes a narrower child. The child cannot exceed the parent.</td>
+    </tr>
+    <tr>
+      <td>A later mesh mints a name as identity.</td>
+      <td>A public key certificate is an on-ramp. The instance name must not become a distinguished name.</td>
+    </tr>
+    <tr>
+      <td>Unknown is treated as live.</td>
+      <td>Unknown does not mean live. Enforcement fails closed. There is no force-allow.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>8. What is built now</h2>
+<p>The kernel on one store can init, add an agent type, Create Agent Principal, challenge, Assertion Act, check, spawn, and Decommission. A second store can accept an issuer public key, accept an act bundle, and accept a Decommission bundle without minting.</p>
+<p>A check host binds the loopback address only. A person can test Create Agent Principal, Assertion Act, check, and Decommission in a browser on this computer. A laboratory runtime can complete one check before a tool and exit allowed or refused. Two stores can prove portable Decommission. Issuer seal and previous-key kill travel as verifier state on the issuer record.</p>
+<p>A visible walk answered five questions yes. Create Agent Principal writes instance, capability, and Decommission in one persist. A second party can verify an act without copying the identity store. Decommission can travel and refuse a later Assertion Act. A runtime can consume an Assertion Act without becoming a directory. A stolen or resigned wrap fails closed after Decommission.</p>
+
+<div class="callout">
+  <p>This host is not a public listener. A public listener waits for a real host name. Init of a store still uses the command line. A stolen issuer secret can still mint an Assertion Act that a verifier allows until that verifier accepts issuer seal or a previous-key kill. Those limits are stated. They are not hidden.</p>
+</div>
+
+<h2>9. What this is not</h2>
+<p>Prometheus is not a human identity provider. Prometheus is not a secrets-management product. Prometheus is not a public directory. Prometheus is not a company product. Findings here are not a later identity platform until a real host name exists and a runtime will not call loopback check.</p>
+<p>The kernel is testable. This page does not say the bet is won. Jason Gale decides whether this agent identity is worth pursuing.</p>
+
+<footer>
+  Source of truth: Prometheus laboratory · 21 August 2026. Simplified Technical English. Full technical words. No standing secret is copied between stores.
+</footer>
+</div>
+</body>
+</html>
