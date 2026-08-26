@@ -442,8 +442,9 @@ impl Kernel {
     }
 
     /// Install a second Module-Lattice Digital Signature Algorithm member key pair.
-    /// Default: write issuer-member-*.secret under the data directory.
-    /// Optional outside path: write only there. Need two members before --n 2.
+    /// The member secret path is required and must live outside the data directory.
+    /// A missing path is refused. A path inside the data directory is refused.
+    /// Need two members before --n 2.
     /// The Biscuit envelope key is not a member. This is not a sixth identity record.
     pub fn add_issuer_member(&self) -> Result<Issuer> {
         self.add_issuer_member_with_secret_path(None)
@@ -478,19 +479,16 @@ impl Kernel {
                 "The new issuer member public key is already a member or is the Biscuit envelope key. The check fails closed.",
             ));
         }
-        match secret_path {
-            Some(path) => {
-                self.store.save_member_secret_at(
-                    path,
-                    &public_key,
-                    &pair.secret_key_hexadecimal,
-                )?;
-            }
-            None => {
-                self.store
-                    .save_member_secret(&public_key, &pair.secret_key_hexadecimal)?;
-            }
-        }
+        let path = secret_path.ok_or_else(|| {
+            Error::denied(
+                "The issuer member secret path is required. A missing path writes issuer-member-*.secret under the data directory. Stolen store files must not include member two. The check fails closed.",
+            )
+        })?;
+        self.store.save_member_secret_at(
+            path,
+            &public_key,
+            &pair.secret_key_hexadecimal,
+        )?;
         issuer.public_keys.push(public_key.clone());
         if !issuer
             .accepted_issuer_public_keys
@@ -4241,6 +4239,19 @@ mod tests {
         let kernel = Kernel::open(directory.path());
         kernel.initialize().expect("initialize the issuer");
         (directory, kernel)
+    }
+
+    fn add_outside_member_two(kernel: &Kernel) -> (tempfile::TempDir, PathBuf) {
+        let custody_directory = tempdir().expect("create a custody directory");
+        let outside = custody_directory.path().join("member-two.secret");
+        kernel
+            .add_issuer_member_with_secret_path(Some(&outside))
+            .expect("add a second member outside the data directory");
+        kernel
+            .store()
+            .register_extra_member_secret_path(outside.clone())
+            .expect("register the outside member secret path");
+        (custody_directory, outside)
     }
 
     fn laboratory_agent_type(kernel: &Kernel, authorization_limit: &str, depth: u32) -> AgentType {
@@ -9628,8 +9639,10 @@ mod tests {
             .store()
             .read_log()
             .expect("read the issuance log before the refused member add");
+        let custody_directory = tempdir().expect("create a custody directory");
+        let outside = custody_directory.path().join("member-two.secret");
         let error = kernel
-            .add_issuer_member()
+            .add_issuer_member_with_secret_path(Some(&outside))
             .expect_err("adding a member after issuer seal must be refused");
         assert_issuer_seal_refused(&error);
         let after = kernel
@@ -12892,10 +12905,53 @@ mod tests {
         assert_eq!(issuer.threshold_n, 1);
     }
 
+
+    #[test]
+    fn add_issuer_member_without_an_outside_path_is_refused() {
+        let (directory, kernel) = laboratory_kernel();
+        let error = kernel
+            .add_issuer_member()
+            .expect_err("a missing member secret path must refuse");
+        let text = error.to_string();
+        assert!(
+            text.contains("required") || text.contains("under the data directory"),
+            "unexpected missing-path add-member error: {error}"
+        );
+        let none_error = kernel
+            .add_issuer_member_with_secret_path(None)
+            .expect_err("None must refuse the in-directory member write");
+        let none_text = none_error.to_string();
+        assert!(
+            none_text.contains("required") || none_text.contains("under the data directory"),
+            "unexpected None add-member error: {none_error}"
+        );
+        let stray: Vec<_> = std::fs::read_dir(directory.path())
+            .expect("read the store")
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("issuer-member-")
+            })
+            .collect();
+        assert!(
+            stray.is_empty(),
+            "a refused add member must not write a member secret inside the data directory"
+        );
+        let issuer = kernel.store().load_issuer().expect("load the issuer");
+        assert_eq!(
+            issuer.signing_member_count(),
+            1,
+            "a refused add member must not grow the issuer member list"
+        );
+    }
+
     #[test]
     fn adding_a_second_member_then_setting_threshold_two_succeeds() {
         let (_directory, kernel) = laboratory_kernel();
-        let issuer = kernel.add_issuer_member().expect("add a second member");
+        let (_custody, _outside) = add_outside_member_two(&kernel);
+        let issuer = kernel.store().load_issuer().expect("load the issuer after member two");
         assert!(issuer.signing_member_count() >= 2);
         let issuer = kernel
             .set_issuer_threshold(2)
@@ -12906,7 +12962,8 @@ mod tests {
     #[test]
     fn mint_and_birth_refuse_when_only_one_secret_is_present_and_threshold_is_two() {
         let (directory, kernel) = laboratory_kernel();
-        let issuer = kernel.add_issuer_member().expect("add a second member");
+        let (_custody, outside) = add_outside_member_two(&kernel);
+        let issuer = kernel.store().load_issuer().expect("load the issuer after member two");
         kernel.set_issuer_threshold(2).expect("set n=2");
         let extra = issuer
             .trusted_signing_member_public_keys()
@@ -12914,8 +12971,9 @@ mod tests {
             .find(|key| key != &issuer.current_public_key_hex())
             .expect("the additional member public key");
         let agent_type = laboratory_agent_type(&kernel, "payments", 2);
-        std::fs::remove_file(kernel.store().member_secret_path(&extra))
+        std::fs::remove_file(&outside)
             .expect("remove the additional member secret");
+        let _ = extra;
         let error = kernel.mint_capability(
             &{
                 kernel
@@ -12954,7 +13012,7 @@ mod tests {
     #[test]
     fn mint_with_two_member_secrets_when_threshold_is_two_succeeds_and_verifies() {
         let (_directory, kernel) = laboratory_kernel();
-        kernel.add_issuer_member().expect("add a second member");
+        let (_custody, _outside) = add_outside_member_two(&kernel);
         kernel.set_issuer_threshold(2).expect("set n=2");
         let agent_type = laboratory_agent_type(&kernel, "payments", 2);
         let birth = kernel
@@ -12986,7 +13044,7 @@ mod tests {
     #[test]
     fn stripping_one_of_two_signatures_refuses_evaluate() {
         let (_directory, kernel) = laboratory_kernel();
-        kernel.add_issuer_member().expect("add a second member");
+        let (_custody, _outside) = add_outside_member_two(&kernel);
         kernel.set_issuer_threshold(2).expect("set n=2");
         let (instance, capability) = laboratory_capability(&kernel);
         let mut stripped = kernel
@@ -13021,7 +13079,7 @@ mod tests {
     #[test]
     fn a_biscuit_envelope_key_used_as_a_member_signature_does_not_count() {
         let (_directory, kernel) = laboratory_kernel();
-        kernel.add_issuer_member().expect("add a second member");
+        let (_custody, _outside) = add_outside_member_two(&kernel);
         kernel.set_issuer_threshold(2).expect("set n=2");
         let (_instance, capability) = laboratory_capability(&kernel);
         let issuer = kernel.store().load_issuer().expect("load the issuer");
@@ -13440,8 +13498,9 @@ mod tests {
         let original_accepted = original.accepted_issuer_public_keys.clone();
 
         let stolen = Kernel::open(store_directory.path());
+        let third_stolen = custody_directory.path().join("member-three-stolen.secret");
         let error = stolen
-            .add_issuer_member()
+            .add_issuer_member_with_secret_path(Some(&third_stolen))
             .expect_err("add member must refuse when member two is not presented");
         let message = error.to_string();
         assert!(
@@ -13482,8 +13541,9 @@ mod tests {
             "a refused add member must not write a member secret inside the data directory"
         );
 
+        let third = custody_directory.path().join("member-three.secret");
         signing
-            .add_issuer_member()
+            .add_issuer_member_with_secret_path(Some(&third))
             .expect("add member must succeed when member two is presented");
         let added = signing
             .store()
@@ -13634,7 +13694,7 @@ mod tests {
     #[test]
     fn threshold_n_cannot_be_lowered() {
         let (_directory, kernel) = laboratory_kernel();
-        kernel.add_issuer_member().expect("add a second member");
+        let (_custody, _outside) = add_outside_member_two(&kernel);
         kernel.set_issuer_threshold(2).expect("set n=2");
         let error = kernel
             .set_issuer_threshold(1)

@@ -10,6 +10,7 @@ Jason Gale locked these colleague-facing and product names. Later work may not r
 - Assertion Act is the product name for the act the laboratory called present. The kernel call remains present. The host paths remain POST /present-svid and POST /present-wimse.
 - Decommission is the product name for the act the laboratory called death. Decommission is the end-of-life workflow for the identity. The kernel calls remain kill and kill_instance. The host paths remain POST /kill, POST /kill-export, and POST /kill-accept.
 - check.prestigeworldwide.digital is the laboratory public check host name. Jason Gale locked this name on 22 August 2026. This lock is a name only. A public listener is not started by this lock. www.prestigeworldwide.digital is not the check name. The apex prestigeworldwide.digital is not the check listener. Instance identifiers still must not become distinguished names.
+- GET /.well-known/prometheus-check is the well-known check path in the laboratory and in a later market. That path is a protocol constant. A later market may name the host and may later lock a product word for Check. A later market does not rename this path. Jason Gale locked this on 26 August 2026.
 
 ## Not locked
 

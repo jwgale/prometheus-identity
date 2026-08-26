@@ -39,6 +39,8 @@ The identity root is Module-Lattice Digital Signature Algorithm. A new birth wri
 
 Store B is a verifier. Store B does not mint. Store B does not receive issuer.secret. Threshold is a property of one issuer. Member two is not a second store.
 
+Jason Gale locked one kernel, restorable on 26 August 2026. Create Agent Principal has one birth authority. A second live issuer is a second identity kernel and is refused. Recovery is restore of that same issuer after the issuing computer is dead. Restore is not copying issuer.secret onto a live Store B. How restore and self-healing after failure work is remaining work. This page does not name a restore act.
+
 Authorization limit is the highest intent and destination an agent type may hold. A child cannot exceed its parent. An instance cannot raise its own authorization limit.
 
 See ANATOMY.md for the field-level closed set.
@@ -55,7 +57,8 @@ The loopback check host consumes the wrap at POST /check-svid. The host is a che
 - Unknown does not mean live.
 - After birth, a later instance file must not rebind the holder public key.
 - Do not copy issuer secrets, biscuit secrets, holder secrets, or member-two secrets between stores.
-- The laboratory member-two custody path is an outside file. That file may live on prometheus-member-two and be reached from the issuing computer as a typed path over the laboratory site-to-site tunnel. issuer.secret stays on the issuing computer. Member two is not a second store. Who holds member two in a later market stays open.
+- One kernel, restorable. Create Agent Principal has one birth authority. A second live issuer is a second identity kernel and is refused. Recovery is restore of that same issuer after the issuing computer is dead. Restore is not copying issuer.secret onto a live Store B. How restore and self-healing after failure work is remaining work. Jason Gale locked this on 26 August 2026.
+- The laboratory member-two custody path is an outside file. That file may live on prometheus-member-two and be reached from the issuing computer as a typed path over the laboratory site-to-site tunnel. issuer.secret stays on the issuing computer. Member two is not a second store. A missing member-two secret path is refused. The kernel does not write issuer-member-*.secret under the data directory. Who holds member two in a later market stays open.
 - Do not put instance identifiers into public key infrastructure names.
 - Do not bind the check host to all interfaces.
 - The laboratory public check name is check.prestigeworldwide.digital. A later public listener uses that name only. www.prestigeworldwide.digital is not the check name. The apex prestigeworldwide.digital is not the check listener.
@@ -63,9 +66,10 @@ The loopback check host consumes the wrap at POST /check-svid. The host is a che
 - After issuer seal, mint, birth, spawn, present, check, agent-type add, sign-holder-nonce, challenge, rotate, member-two, set-verify-threshold, and set-issuer-threshold are refused. Challenge appends a signed issuance.log line. That write is not verify-only. Signing a nonce is holder-key use, not mint. Source of truth was silent on that sign. This store refuses after seal to stay fail-closed. Kill after seal is intended. Kill is death, not mint.
 - After Store B accepts a previous issuer key and its kill date, a wrap or act signed only by that previous key after that kill date is refused on Store B. This is verifier state on the issuer record. This is not a sixth identity record. This is not a public transparency log.
 - After Store B accepts a seal for a foreign issuer public key, present verify and act accept for that issuer pin are refused on Store B. Seal accept is verifier state on the issuer record. This is not a sixth identity record. This is not a public transparency log.
-- Stolen issuer secret can still mint a present that Store B allows until Store B accepts that seal or a previous-key kill. After Store B accepts the seal, a stolen issuer secret is no longer enough. That remaining stolen-issuer limit stays open only while B has not yet accepted.
+- Stolen issuer secret can still mint a present that Store B allows until Store B accepts that seal or a previous-key kill. After Store B accepts the seal, a stolen issuer secret is no longer enough. The stolen-issuer window is remaining life until Store B accepts seal or a previous-key kill. After Store B accepts the seal, a stolen issuer secret is no longer enough. This is not a kernel leftover to invent a close. A later market may require seal-accept on each verifier that pinned that issuer before issuer Decommission is complete. The operator carries the seal bundle. The kernel does not push it. This laboratory does not start a public transparency log. Jason Gale locked this on 26 August 2026.
 - GET / is the later user interface on the issuing store and still binds 127.0.0.1 only. GET /laboratory is the laboratory operator page.
 - GET /.well-known/prometheus-check on a public check-only host names check paths and allowed operator pins. That public document omits write and export verbs.
+- GET /.well-known/prometheus-check is the well-known check path in the laboratory and in a later market. That path is a protocol constant. A later market may name the host and may later lock a product word for Check. A later market does not rename this path. Check keeps the laboratory name until Jason Gale locks a new word.
 - SPIRE starts only as a consumer, and only when a real mesh or runtime will not call loopback /check-svid or https://check.prestigeworldwide.digital. Do not start SPIRE until that condition is true.
 - Do not plan the human identity provider replacement in this tree.
 

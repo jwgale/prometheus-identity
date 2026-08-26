@@ -658,9 +658,9 @@ enum IssuerCommand {
 enum IssuerMemberCommand {
     /// Install a second Module-Lattice Digital Signature Algorithm member key pair.
     Add {
-        /// Write this member secret outside the data directory. Refuse a path inside the data directory.
+        /// Write this member secret outside the data directory. A missing path is refused. A path inside the data directory is refused.
         #[arg(long = "secret-path")]
-        secret_path: Option<PathBuf>,
+        secret_path: PathBuf,
     },
 }
 
@@ -1815,7 +1815,7 @@ fn run() -> Result<ExitCode> {
             print_json(&issuer)?;
         }
         Command::Issuer(IssuerCommand::Member(IssuerMemberCommand::Add { secret_path })) => {
-            let issuer = kernel.add_issuer_member_with_secret_path(secret_path.as_deref())?;
+            let issuer = kernel.add_issuer_member_with_secret_path(Some(secret_path.as_path()))?;
             print_json(&issuer)?;
         }
         Command::Receipt(ReceiptCommand::Verify {
