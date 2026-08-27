@@ -15312,4 +15312,64 @@ mod tests {
             Err(_) => {}
         }
     }
+    #[test]
+    fn cold_restore_present_verifies_on_a_store_that_pinned_the_original_issuer() {
+        let (_source_directory, first) = laboratory_kernel();
+        let (instance, capability) = laboratory_capability(&first);
+        let _source_present = laboratory_signed_presentation(&first, &instance, &capability);
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        first
+            .export_issuer_backup(&backup)
+            .expect("export a laboratory backup outside the data directory");
+        let dest_directory = tempdir().expect("create a restore destination");
+        let dest_root = dest_directory.path().join("restored");
+        let restored = Kernel::restore_from_backup(&backup, &dest_root)
+            .expect("restore onto an empty issuing store");
+        let diagnostics = restored
+            .restore_diagnostics(&backup)
+            .expect("restore diagnostics after honest restore");
+        assert!(
+            diagnostics.restore_succeeded && diagnostics.operation_normal,
+            "honest restore must report restore_succeeded and operation_normal"
+        );
+        let source_key = first_issuer_public_key(&first);
+        assert_eq!(
+            first_issuer_public_key(&restored),
+            source_key,
+            "the restored issuer public key must equal the source issuer public key"
+        );
+        assert!(
+            restored.store().holder_secret_path(&instance.id).exists(),
+            "the holder secret must restore from holders/"
+        );
+        let restored_present = laboratory_signed_presentation(&restored, &instance, &capability);
+        restored
+            .verify_presentation(&restored_present)
+            .expect("an honest present from the restored live instance must verify");
+        let (_verifier_directory, verifier) = laboratory_kernel();
+        verifier
+            .accept_issuer_public_key(&source_key)
+            .expect("store C pins the original issuer public key");
+        verifier
+            .verify_presentation(&restored_present)
+            .expect("a store that pinned the original public key must allow the restored present");
+        restored
+            .kill_instance(&instance.id)
+            .expect("kill on the restored issuer");
+        let kill_directory = dest_directory.path().join("kill-bundle");
+        restored
+            .export_kill_bundle(Some(&instance.id), None, &kill_directory)
+            .expect("export a kill bundle after kill");
+        verifier
+            .accept_kill_bundle(&kill_directory)
+            .expect("store C must accept the kill bundle");
+        let refuse = verifier
+            .verify_presentation(&restored_present)
+            .expect_err("present verify must refuse after kill accept");
+        assert!(
+            refuse.to_string().contains("kill accept"),
+            "unexpected present-after-kill-accept error: {refuse}"
+        );
+    }
 }
