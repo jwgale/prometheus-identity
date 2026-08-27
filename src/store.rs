@@ -1495,6 +1495,33 @@ impl Store {
         Ok(false)
     }
 
+    /// True when issuance.log has a kill_capability or kill_instance line for
+    /// this capability identifier. Matches event.capability_id or
+    /// killed_capability_ids. Walks read_log only. This function must not
+    /// call load_issuer.
+    pub(crate) fn signed_kill_hits_capability(&self, capability_id: &str) -> Result<bool> {
+        let trimmed = capability_id.trim();
+        if trimmed.is_empty() {
+            return Ok(false);
+        }
+        for event in self.read_log()? {
+            if event.operation != "kill_capability" && event.operation != "kill_instance" {
+                continue;
+            }
+            if event.capability_id.as_deref() == Some(trimmed) {
+                return Ok(true);
+            }
+            if event
+                .killed_capability_ids
+                .iter()
+                .any(|identifier| identifier.trim() == trimmed)
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     pub fn holder_secret_path(&self, instance_id: &str) -> PathBuf {
         self.root
             .join("holders")

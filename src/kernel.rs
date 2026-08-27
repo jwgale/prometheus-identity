@@ -2056,11 +2056,10 @@ impl Kernel {
         tokens::require_trusted_agent_type_issuer_signature(&agent_type, &issuer, self.now())?;
         self.require_capability_in_issuance_log_or_refuse_stolen_old_key(capability, &issuer)?;
         let events = self.store.read_log()?;
-        if events.iter().any(|event| {
-            event.operation == "kill_capability"
-                && event.capability_id.as_deref() == Some(capability.id.as_str())
-        }) {
-            return Err(Error::denied("This capability was revoked."));
+        if Self::local_kill_log_hits_capability(&events, &capability.id) {
+            return Err(Error::denied(
+                "This capability was revoked. A signed kill line already records this capability.",
+            ));
         }
         if instance.status == InstanceStatus::Revoked
             || events.iter().any(|event| {
@@ -2180,9 +2179,15 @@ impl Kernel {
     /// Load a chain and refuse a missing, wrong, or untrusted issuer signature.
     /// Spawn, attenuate, evaluate, and present use this before hop_index or
     /// revoke_from_here can grant or refuse an act.
+    /// Verify the file signature first. Then, if a signed kill line already
+    /// records this capability, set in-memory revoke_from_here to true. Do not
+    /// write the file. A planted live chain is not live.
     fn load_trusted_chain(&self, capability_id: &str) -> Result<Chain> {
-        let chain = self.store.load_chain(capability_id)?;
+        let mut chain = self.store.load_chain(capability_id)?;
         self.require_trusted_chain_issuer_signature(&chain)?;
+        if self.store.signed_kill_hits_capability(&chain.capability_id)? {
+            chain.revoke_from_here = true;
+        }
         Ok(chain)
     }
 
@@ -3722,12 +3727,9 @@ impl Kernel {
             ));
         }
         let events = self.store.read_log()?;
-        if events.iter().any(|event| {
-            event.operation == "kill_capability"
-                && event.capability_id.as_deref() == Some(capability.id.as_str())
-        }) {
+        if Self::local_kill_log_hits_capability(&events, &capability.id) {
             return Err(Error::denied(
-                "This capability was revoked. A presentation is refused. The check fails closed.",
+                "This capability was revoked. A signed kill line already records this capability. A presentation is refused. The check fails closed.",
             ));
         }
         if self.chain_has_revoke_from_here(&capability.id)? {
@@ -10892,6 +10894,110 @@ mod tests {
     }
 
     #[test]
+    fn present_refuses_after_planted_live_chain_following_signed_parent_capability_kill() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (parent, capability) = laboratory_capability(&kernel);
+        let parent_nonce = fresh_challenge(&kernel, &parent);
+        let child = kernel
+            .spawn_child(
+                &parent.id,
+                &capability.id,
+                "child".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments/prod",
+                None,
+                Some(&holder_proof(&kernel, &parent)),
+                Some(&parent_nonce),
+            )
+            .expect("a narrower child must succeed");
+        let parent_chain_path = kernel
+            .store()
+            .root()
+            .join("chains")
+            .join(format!("{}.json", capability.id));
+        let original_parent_chain =
+            std::fs::read_to_string(&parent_chain_path).expect("read the live parent chain");
+        let child_nonce = fresh_challenge(&kernel, &child.instance);
+        kernel
+            .kill_capability(&capability.id)
+            .expect("kill the parent capability");
+        std::fs::write(&parent_chain_path, &original_parent_chain)
+            .expect("plant the original live parent chain without save_chain");
+        let error = kernel
+            .present_capability(
+                &child.instance.id,
+                &child.capability.id,
+                Some(&holder_proof(&kernel, &child.instance)),
+                Some(&child_nonce),
+            )
+            .expect_err("present after a planted live parent chain must be refused");
+        let error_text = error.to_string();
+        assert!(
+            error_text.contains("revoked")
+                || error_text.contains("kill")
+                || error_text.contains("revoke_from_here"),
+            "the refuse must name revoked, kill, or revoke_from_here: {error}"
+        );
+    }
+
+    #[test]
+    fn check_refuses_after_planted_live_chain_following_signed_parent_capability_kill() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (parent, capability) = laboratory_capability(&kernel);
+        let parent_nonce = fresh_challenge(&kernel, &parent);
+        let child = kernel
+            .spawn_child(
+                &parent.id,
+                &capability.id,
+                "child".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments/prod",
+                None,
+                Some(&holder_proof(&kernel, &parent)),
+                Some(&parent_nonce),
+            )
+            .expect("a narrower child must succeed");
+        let parent_chain_path = kernel
+            .store()
+            .root()
+            .join("chains")
+            .join(format!("{}.json", capability.id));
+        let original_parent_chain =
+            std::fs::read_to_string(&parent_chain_path).expect("read the live parent chain");
+        let child_nonce = fresh_challenge(&kernel, &child.instance);
+        kernel
+            .kill_capability(&capability.id)
+            .expect("kill the parent capability");
+        std::fs::write(&parent_chain_path, &original_parent_chain)
+            .expect("plant the original live parent chain without save_chain");
+        let decision = kernel
+            .check_tool_action(
+                &child.instance.id,
+                Some(&child.capability.id),
+                "read",
+                "payments/prod",
+                Some(&holder_proof(&kernel, &child.instance)),
+                Some(&child_nonce),
+                Some("autonomous"),
+            )
+            .expect("check returns a decision");
+        assert_eq!(
+            decision.result, "refused",
+            "check after a planted live parent chain must refuse: {:?}",
+            decision.reason
+        );
+        let reason = decision.reason.expect("a refused check must name a reason");
+        assert!(
+            reason.contains("revoked")
+                || reason.contains("kill")
+                || reason.contains("revoke_from_here"),
+            "the refuse must name revoked, kill, or revoke_from_here: {reason}"
+        );
+    }
+
+    #[test]
     fn issue_holder_challenge_after_issuer_seal_is_refused() {
         let (_directory, kernel) = laboratory_kernel();
         let (instance, _capability) = laboratory_capability(&kernel);
@@ -13358,6 +13464,19 @@ mod tests {
         );
     }
 
+    fn assert_planted_chain_or_signed_kill_refused(reason: &str) {
+        assert!(
+            reason.contains("issuer signature")
+                || reason.contains("planted record")
+                || reason.contains("trusted issuer key")
+                || reason.contains("signed identity fields")
+                || reason.contains("signed kill")
+                || reason.contains("revoked")
+                || reason.contains("kill"),
+            "unexpected planted-chain or signed-kill refuse reason: {reason}"
+        );
+    }
+
     fn flip_signature_nibble(signature_hex: &str) -> String {
         let mut characters: Vec<char> = signature_hex.chars().collect();
         assert!(
@@ -13863,7 +13982,7 @@ mod tests {
                 Some("autonomous"),
             )
             .expect_err("a planted cleared revoke-from-here must not revive the child");
-        assert_record_signature_refused(&child_error.to_string());
+        assert_planted_chain_or_signed_kill_refused(&child_error.to_string());
         let decision = kernel
             .check_tool_action(
                 &instance.id,
@@ -13877,7 +13996,7 @@ mod tests {
             .expect("check returns a decision");
         assert_eq!(decision.result, "refused");
         let reason = decision.reason.expect("a refused check must name a reason");
-        assert_record_signature_refused(&reason);
+        assert_planted_chain_or_signed_kill_refused(&reason);
     }
 
     #[test]
@@ -14065,7 +14184,7 @@ mod tests {
             .expect_err(
                 "a planted cleared revoke-from-here must not revive the child after rotate",
             );
-        assert_record_signature_refused(&child_error.to_string());
+        assert_planted_chain_or_signed_kill_refused(&child_error.to_string());
     }
 
     #[test]
