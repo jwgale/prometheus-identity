@@ -12110,6 +12110,148 @@ mod tests {
     }
 
     #[test]
+    fn load_issuer_shrinks_planted_extra_public_keys() {
+        let (_directory, kernel) = laboratory_kernel();
+        let receipt = laboratory_check_receipt(&kernel);
+        let stored = kernel.store().load_issuer().expect("load the issuer");
+        let original = stored.public_keys.clone();
+        let attacker = crate::issuer_crypto::generate_module_lattice_key_pair()
+            .expect("generate an attacker module lattice key");
+        let attacker_public = attacker.public_key_hexadecimal.clone();
+        let issuer_path = kernel.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse issuer.json");
+        let mut keys = planted
+            .get("public_keys")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        keys.push(serde_json::Value::String(attacker_public.clone()));
+        planted["public_keys"] = serde_json::Value::Array(keys);
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant an extra public_keys entry without save_issuer");
+        let loaded = kernel
+            .store()
+            .load_issuer()
+            .expect("load after the planted extra public_keys entry");
+        assert_eq!(
+            loaded.public_keys, original,
+            "load_issuer must shrink planted extra public_keys"
+        );
+        assert!(
+            !loaded
+                .accepted_issuer_public_keys_for_verify()
+                .iter()
+                .any(|key| key.trim() == attacker_public),
+            "a planted extra public_keys entry must not be a live verify key"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk = still_planted
+            .get("public_keys")
+            .and_then(|value| value.as_array())
+            .expect("planted public_keys must remain on disk");
+        assert!(
+            on_disk
+                .iter()
+                .any(|value| value.as_str() == Some(attacker_public.as_str())),
+            "load_issuer must not write the file back"
+        );
+        let mut foreign = receipt.clone();
+        foreign.issuer_signatures.clear();
+        foreign.signature = tokens::sign_decision_receipt(
+            &attacker.secret_key_hexadecimal,
+            &foreign.canonical_message(),
+        )
+        .expect("sign with the planted attacker key");
+        let foreign_error = kernel
+            .verify_decision_receipt(&foreign)
+            .expect_err("verify must not accept a receipt signed by a planted extra public key");
+        let text = foreign_error.to_string();
+        assert!(
+            text.contains("not valid for any accepted issuer public key")
+                || text.contains("unknown issuer key"),
+            "unexpected planted-key receipt error: {foreign_error}"
+        );
+        kernel
+            .verify_decision_receipt(&receipt)
+            .expect("an honest receipt must still verify after shrinking planted public_keys");
+    }
+
+    #[test]
+    fn load_issuer_keeps_signed_member_keys_when_shrinking_public_keys() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (_custody_two, _) = add_outside_member_two(&kernel);
+        let (_custody_three, _) = add_outside_member_three(&kernel);
+        let stored = kernel.store().load_issuer().expect("load after member add");
+        let original = stored.public_keys.clone();
+        let original_count = stored.signing_member_count();
+        assert!(
+            original_count >= 3,
+            "signed member two and member three must already be live"
+        );
+        let attacker = crate::issuer_crypto::generate_module_lattice_key_pair()
+            .expect("generate an attacker module lattice key");
+        let attacker_public = attacker.public_key_hexadecimal.clone();
+        let issuer_path = kernel.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse issuer.json");
+        let mut keys = planted
+            .get("public_keys")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        keys.push(serde_json::Value::String(attacker_public.clone()));
+        planted["public_keys"] = serde_json::Value::Array(keys);
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant an extra public_keys entry without save_issuer");
+        let loaded = kernel
+            .store()
+            .load_issuer()
+            .expect("load after the planted extra public_keys entry");
+        assert_eq!(
+            loaded.public_keys, original,
+            "load_issuer must keep signed member keys and shrink only the planted extra"
+        );
+        assert_eq!(
+            loaded.signing_member_count(),
+            original_count,
+            "a planted extra public_keys entry must not raise signing_member_count"
+        );
+        assert!(
+            !loaded
+                .public_keys
+                .iter()
+                .any(|key| key.trim() == attacker_public),
+            "the planted extra must not remain on the loaded public_keys list"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk = still_planted
+            .get("public_keys")
+            .and_then(|value| value.as_array())
+            .expect("planted public_keys must remain on disk");
+        assert!(
+            on_disk
+                .iter()
+                .any(|value| value.as_str() == Some(attacker_public.as_str())),
+            "load_issuer must not write the file back"
+        );
+    }
+
+    #[test]
     fn issuer_persist_refuses_a_later_previous_key_kill_date() {
         let (_directory, kernel) = laboratory_kernel();
         let start = Utc::now();

@@ -827,6 +827,31 @@ impl Store {
         Ok(dates)
     }
 
+    /// Signed issuer member public keys on issuer_member_add notes.
+    /// Walks read_log only. This function must not call load_issuer.
+    /// Each issuer_member_add note stores public_key as hex.
+    /// Unparseable notes are skipped. The same public key on more than
+    /// one member-add line is stored once.
+    pub fn signed_issuer_member_public_keys(&self) -> Result<Vec<String>> {
+        let mut keys: Vec<String> = Vec::new();
+        for event in self.read_log()? {
+            if event.operation != "issuer_member_add" {
+                continue;
+            }
+            let Some(note) = event.note.as_deref() else {
+                continue;
+            };
+            let Some(public_key) = member_public_key_from_member_add_note(note) else {
+                continue;
+            };
+            if keys.iter().any(|existing| existing == &public_key) {
+                continue;
+            }
+            keys.push(public_key);
+        }
+        Ok(keys)
+    }
+
     /// Earliest parseable accepted-previous-key kill_date on a signed
     /// previous_key_accept note. Walks read_log only. This function must
     /// not call load_issuer.
@@ -919,6 +944,10 @@ impl Store {
     /// If a signed previous_key_accept note records a previous public key
     /// that is not in the file, restore that accepted previous key in
     /// memory. Do not write the file. A planted drop is not live.
+    /// If unsigned issuer.json public_keys holds a key that is not the
+    /// current public key and is not a signed issuer_member_add public key,
+    /// drop that extra in memory. Do not write the file. A planted extra
+    /// is not a live verify key.
     pub fn load_issuer(&self) -> Result<Issuer> {
         if !self.issuer_path().exists() {
             return Err(Error::kernel(
@@ -1000,6 +1029,20 @@ impl Store {
                     kill_date: *kill_date,
                 });
         }
+        let signed_members = self.signed_issuer_member_public_keys()?;
+        let current = issuer.current_public_key.trim().to_string();
+        issuer.public_keys.retain(|key| {
+            let trimmed = key.trim();
+            if trimmed.is_empty() {
+                return false;
+            }
+            if !current.is_empty() && trimmed == current {
+                return true;
+            }
+            signed_members
+                .iter()
+                .any(|signed| signed.trim() == trimmed)
+        });
         Ok(issuer)
     }
 
@@ -2002,6 +2045,32 @@ impl Store {
         Self::copy_backup_allow_list(backup, dest_root)?;
         Ok(())
     }
+}
+
+/// Parse public_key from an issuer_member_add note.
+/// Skip previous_public_key and current_public_key. Skip a note that does not parse.
+/// Do not panic.
+fn member_public_key_from_member_add_note(note: &str) -> Option<String> {
+    const PREFIX: &str = "public_key=";
+    let start = note.find(PREFIX)?;
+    if start >= "previous_".len() && note[..start].ends_with("previous_") {
+        return None;
+    }
+    if start >= "current_".len() && note[..start].ends_with("current_") {
+        return None;
+    }
+    let rest = &note[start + PREFIX.len()..];
+    let public_key = rest
+        .split_whitespace()
+        .next()
+        .unwrap_or(rest)
+        .trim_end_matches('.')
+        .trim()
+        .to_string();
+    if public_key.is_empty() {
+        return None;
+    }
+    Some(public_key)
 }
 
 /// Parse previous_public_key and kill_date from an issuer_rotate note.

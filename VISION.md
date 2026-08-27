@@ -601,6 +601,10 @@ Jason can run a two-host cold restore on 127.0.0.1. Host A uses empty-then-inite
 
 Laboratory n=3 is unlocked on throwaway stores. After cold restore onto an empty dest, restore diagnostics report operation_normal. The issuer public key does not change. Backup still excludes member two and member three. Birth on dest without outside members refuses. Birth with only one outside member refuses. Birth after both outside member paths are registered succeeds. A verifier that pinned the original public key allows that dest present. GET / already posts backup, restore, and diagnose. Standing data-a stays issuance threshold_n 2. This is not SPIRE. This is not Sanctum. The laboratory test count is 560 tests.
 
+### Rung 124 — planted extra public_keys on unsigned issuer.json are not live (closed, 27 August 2026)
+
+save_issuer already refuses growing public_keys with a foreign key. A raw write to unsigned issuer.json could still plant an extra public key. load_issuer now drops extras that are not the current public key and not a signed issuer_member_add public key. Do not write the file. A planted extra is not a live verify key. Honest signed member keys stay. Standing data-a stays issuance threshold_n 2. This is not SPIRE. This is not Sanctum. The laboratory test count is 562 tests.
+
 
 ### GitHub publication (started and landed, 23 August 2026)
 
