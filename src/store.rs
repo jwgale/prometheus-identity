@@ -531,15 +531,17 @@ impl Store {
         Ok(())
     }
 
-    /// accepted_previous_issuer_keys cannot lose a stored key and cannot postpone
-    /// a stored kill_date. Growing is the accept path. This is verifier state.
-    /// This is not a sixth identity record.
+    /// accepted_previous_issuer_keys cannot lose a signed accepted key and cannot
+    /// postpone a stored kill_date. Growing is the accept path. This is verifier
+    /// state. This is not a sixth identity record.
     /// Freeze is the earlier of the unsigned file kill_date and the earliest
     /// signed kill_date on a previous_key_accept note for that public key.
     /// A planted later file date must not become the freeze.
     /// A persist must not omit a previous key that a signed previous_key_accept
     /// note already records. Freeze against that signed list, not only the file.
     /// A planted empty list must not become the freeze.
+    /// A planted extra with no signed previous_key_accept line is not frozen and
+    /// may be dropped on a later persist.
     /// Honest accept writes the accepted previous key before the signed line exists.
     /// That first write is not an omit.
     fn require_accepted_previous_keys_not_raised(
@@ -550,6 +552,15 @@ impl Store {
         let signed_accepted = self.signed_accepted_previous_key_kill_dates()?;
         for stored_previous in &stored.accepted_previous_issuer_keys {
             let stored_hex = stored_previous.public_key_hex.trim();
+            // Unsigned file entries with no signed previous_key_accept line
+            // are not frozen. A planted extra may be dropped. Honest first
+            // accept grows the list before the signed line exists.
+            if !signed_accepted
+                .iter()
+                .any(|(key, _)| key.trim() == stored_hex)
+            {
+                continue;
+            }
             let matching: Vec<_> = issuer
                 .accepted_previous_issuer_keys
                 .iter()
@@ -691,6 +702,15 @@ impl Store {
         let signed_accepted = self.signed_accepted_seal_kill_dates()?;
         for stored_sealed in &stored.accepted_sealed_issuer_keys {
             let stored_hex = stored_sealed.public_key_hex.trim();
+            // Unsigned file entries with no signed seal_accept line are not
+            // frozen. A planted extra may be dropped. Honest first accept
+            // grows the list before the signed line exists.
+            if !signed_accepted
+                .iter()
+                .any(|(key, _)| key.trim() == stored_hex)
+            {
+                continue;
+            }
             let matching: Vec<_> = issuer
                 .accepted_sealed_issuer_keys
                 .iter()
@@ -1030,6 +1050,10 @@ impl Store {
     /// If a signed previous_key_accept note records a previous public key
     /// that is not in the file, restore that accepted previous key in
     /// memory. Do not write the file. A planted drop is not live.
+    /// If unsigned issuer.json accepted_previous_issuer_keys holds a
+    /// key that no signed previous_key_accept note records, drop that
+    /// extra in memory. Do not write the file. A planted extra is not
+    /// an accept.
     /// If an accepted_sealed_issuer_keys kill_date is later than the
     /// earliest signed kill_date on a seal_accept note for that
     /// public key, set the in-memory accepted seal kill_date to
@@ -1133,6 +1157,13 @@ impl Store {
                     kill_date: *kill_date,
                 });
         }
+        issuer.accepted_previous_issuer_keys.retain(|entry| {
+            let hex = entry.public_key_hex.trim();
+            !hex.is_empty()
+                && signed_accepted_previous
+                    .iter()
+                    .any(|(key, _)| key.trim() == hex)
+        });
         let signed_accepted_seal = self.signed_accepted_seal_kill_dates()?;
         for entry in &mut issuer.accepted_sealed_issuer_keys {
             let hex = entry.public_key_hex.trim();

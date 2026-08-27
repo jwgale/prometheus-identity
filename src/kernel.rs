@@ -6408,6 +6408,124 @@ mod tests {
         );
     }
 
+
+    #[test]
+    fn verify_does_not_treat_a_planted_extra_accepted_previous_issuer_key_as_accept() {
+        let (_first_directory, first) = laboratory_kernel();
+        let start = Utc::now();
+        first.set_now_for_test(start);
+        let (instance, capability) = laboratory_capability(&first);
+        let honest = laboratory_signed_presentation(&first, &instance, &capability);
+        let old_secret = first
+            .store()
+            .load_secret()
+            .expect("load store A issuer secret");
+        let old_public_key = first_issuer_public_key(&first);
+        first
+            .rotate_issuer_key(60)
+            .expect("store A rotate must succeed");
+        let new_public_key = first_issuer_public_key(&first);
+        let rotated = first
+            .store()
+            .load_issuer()
+            .expect("load store A after rotate");
+        let previous_kill = rotated.previous_issuer_keys[0].kill_date;
+        let honest_kill = start + Duration::seconds(60);
+        assert_eq!(previous_kill, honest_kill);
+        let (_second_directory, second) = laboratory_kernel();
+        second.set_now_for_test(start);
+        second
+            .accept_issuer_public_key(&old_public_key)
+            .expect("store B pins store A old key");
+        second
+            .accept_issuer_public_key(&new_public_key)
+            .expect("store B pins store A new key");
+        let issuer_path = second.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read store B issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse store B issuer.json");
+        planted["accepted_previous_issuer_keys"] = serde_json::json!([{
+            "public_key_hex": old_public_key,
+            "kill_date": honest_kill.to_rfc3339(),
+        }]);
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant an extra accepted_previous_issuer_keys entry without save_issuer");
+        let log = second
+            .store()
+            .read_log()
+            .expect("read store B issuance log");
+        assert!(
+            !log.iter()
+                .any(|event| event.operation == "previous_key_accept"),
+            "store B must have no signed previous_key_accept line"
+        );
+        let loaded = second
+            .store()
+            .load_issuer()
+            .expect("load store B after the plant");
+        assert!(
+            loaded
+                .accepted_previous_issuer_keys
+                .iter()
+                .all(|entry| entry.public_key_hex.trim() != old_public_key.trim()),
+            "load_issuer must shrink a planted extra accepted previous key that has no signed line"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read store B issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk = still_planted
+            .get("accepted_previous_issuer_keys")
+            .and_then(|value| value.as_array())
+            .expect("planted accepted_previous_issuer_keys must remain on disk");
+        assert!(
+            on_disk.iter().any(|value| value
+                .get("public_key_hex")
+                .and_then(|key| key.as_str())
+                == Some(old_public_key.as_str())),
+            "load_issuer must not write the file back"
+        );
+        let after_kill = start + Duration::seconds(61);
+        first.set_now_for_test(after_kill);
+        second.set_now_for_test(after_kill);
+        let mut stolen = honest.clone();
+        stolen.presented_at = DateTime::<Utc>::from_timestamp(after_kill.timestamp(), 0)
+            .expect("truncate the stolen present time");
+        stolen.expires_at = stolen.presented_at + Duration::seconds(30);
+        stolen.issuer_public_key_hex = old_public_key.clone();
+        stolen.signature_hex =
+            tokens::sign_decision_receipt(&old_secret, &stolen.canonical_message())
+                .expect("sign with the stolen previous issuer secret");
+        second
+            .verify_presentation(&stolen)
+            .expect(
+                "store B must not treat a planted extra accepted previous key without a signed previous_key_accept line as an accept",
+            );
+        second
+            .accept_previous_issuer_key(&old_public_key, previous_kill)
+            .expect("store B must still accept the honest previous key after the plant");
+        let error = second.verify_presentation(&stolen).expect_err(
+            "store B must refuse a present signed only by a previous key past the signed kill date after the signed previous_key_accept line",
+        );
+        let text = error.to_string();
+        assert!(
+            text.contains("past its kill date") || text.contains("previous issuer key"),
+            "store B must name the previous-key kill date after the signed line: {error}"
+        );
+        assert_ne!(
+            second
+                .store()
+                .load_secret()
+                .expect("load store B issuer secret"),
+            old_secret,
+            "issuer.secret must stay on store A and must not be copied to store B"
+        );
+    }
+
+
     #[test]
     fn seal_export_is_refused_before_seal() {
         let (_directory, kernel) = laboratory_kernel();
