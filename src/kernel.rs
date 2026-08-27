@@ -1266,6 +1266,7 @@ impl Kernel {
 
     /// Write a one-time holder challenge for an instance. The nonce is spent on the first valid proof.
     /// This appends a signed issuance.log line. After remaining life this write is refused.
+    /// After instance Decommission this write is refused. A missing instance is refused.
     pub fn issue_holder_challenge(&self, instance_id: &str) -> Result<HolderChallenge> {
         self.issue_holder_challenge_with_lifetime(instance_id, CHALLENGE_WINDOW_SECONDS)
     }
@@ -1282,6 +1283,11 @@ impl Kernel {
             ));
         }
         let instance = self.store.load_instance(instance_id)?;
+        if instance.status != InstanceStatus::Live {
+            return Err(Error::denied(
+                "The instance was revoked. A challenge is refused. The check fails closed.",
+            ));
+        }
         let issued = self.now();
         let expires = issued + Duration::seconds(lifetime_seconds as i64);
         let nonce = new_identifier();
@@ -5123,6 +5129,8 @@ mod tests {
                 Some(&parent_nonce),
             )
             .expect("a narrower child must succeed");
+        let child_nonce = fresh_challenge(&kernel, &child.instance);
+        let check_nonce = fresh_challenge(&kernel, &child.instance);
         kernel
             .kill_instance(&parent.id)
             .expect("parent kill must succeed");
@@ -5145,7 +5153,6 @@ mod tests {
                 .unwrap()
                 .revoke_from_here
         );
-        let child_nonce = fresh_challenge(&kernel, &child.instance);
         let error = kernel
             .verify_capability(
                 &child.capability.id,
@@ -5160,7 +5167,6 @@ mod tests {
             error.to_string().contains("revoked") || error.to_string().contains("revoke_from_here"),
             "unexpected error: {error}"
         );
-        let check_nonce = fresh_challenge(&kernel, &child.instance);
         let decision = kernel
             .check_tool_action(
                 &child.instance.id,
@@ -10498,6 +10504,57 @@ mod tests {
     }
 
     #[test]
+    fn issue_holder_challenge_refuses_after_instance_kill() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (instance, _capability) = laboratory_capability(&kernel);
+        kernel
+            .kill_instance(&instance.id)
+            .expect("kill the local instance");
+        let log_before = kernel
+            .store()
+            .read_log()
+            .expect("read the issuance log before the refused challenge");
+        let challenge_lines_before = log_before
+            .iter()
+            .filter(|event| event.operation == "challenge")
+            .count();
+        let error = kernel
+            .issue_holder_challenge(&instance.id)
+            .expect_err("a holder challenge after instance kill must be refused");
+        let error_text = error.to_string();
+        assert!(
+            error_text.contains("revoked")
+                || error_text.contains("kill")
+                || error_text.contains("death")
+                || error_text.contains("live"),
+            "the refuse must name revoked, kill, death, or live: {error}"
+        );
+        let lifetime_error = kernel
+            .issue_holder_challenge_with_lifetime(&instance.id, CHALLENGE_WINDOW_SECONDS)
+            .expect_err("a holder challenge with lifetime after instance kill must be refused");
+        let lifetime_text = lifetime_error.to_string();
+        assert!(
+            lifetime_text.contains("revoked")
+                || lifetime_text.contains("kill")
+                || lifetime_text.contains("death")
+                || lifetime_text.contains("live"),
+            "the lifetime refuse must name revoked, kill, death, or live: {lifetime_error}"
+        );
+        let log_after = kernel
+            .store()
+            .read_log()
+            .expect("read the issuance log after the refused challenge");
+        let challenge_lines_after = log_after
+            .iter()
+            .filter(|event| event.operation == "challenge")
+            .count();
+        assert_eq!(
+            challenge_lines_after, challenge_lines_before,
+            "a refused holder challenge must not append a challenge issuance.log line"
+        );
+    }
+
+    #[test]
     fn issue_holder_challenge_after_issuer_seal_is_refused() {
         let (_directory, kernel) = laboratory_kernel();
         let (instance, _capability) = laboratory_capability(&kernel);
@@ -10944,10 +11001,10 @@ mod tests {
     fn present_refuses_a_revoked_instance() {
         let (_directory, kernel) = laboratory_kernel();
         let (instance, capability) = laboratory_capability(&kernel);
+        let nonce = fresh_challenge(&kernel, &instance);
         kernel
             .kill_instance(&instance.id)
             .expect("revoke the instance");
-        let nonce = fresh_challenge(&kernel, &instance);
         let error = kernel
             .present_capability(
                 &instance.id,

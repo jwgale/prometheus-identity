@@ -3567,10 +3567,10 @@ mod tests {
                 artifact.presentation_json.as_bytes(),
             )
             .expect("the live wrap must verify before local kill");
+        let body = check_svid_body(&kernel, &birth, &artifact, &artifact.certificate_pem);
         kernel
             .kill_instance(&birth.instance.id)
             .expect("same store must persist local kill");
-        let body = check_svid_body(&kernel, &birth, &artifact, &artifact.certificate_pem);
         let decision = super::check_svid_request_from_json(&kernel, body.as_bytes())
             .expect("the host check-svid path must return a decision");
         assert_eq!(decision.result, "refused");
@@ -3787,9 +3787,6 @@ mod tests {
                 artifact.presentation_json.as_bytes(),
             )
             .expect("the live token must verify before local kill");
-        kernel
-            .kill_instance(&birth.instance.id)
-            .expect("same store must persist local kill");
         let body = check_wimse_body(
             &kernel,
             &birth,
@@ -3797,6 +3794,9 @@ mod tests {
             &artifact.workload_identity_token,
             &artifact.content_digest,
         );
+        kernel
+            .kill_instance(&birth.instance.id)
+            .expect("same store must persist local kill");
         let decision = super::check_wimse_request_from_json(&kernel, body.as_bytes())
             .expect("the host check-wimse path must return a decision");
         assert_eq!(decision.result, "refused");
@@ -13452,13 +13452,13 @@ mod tests {
             "confirm": birth.instance.id,
         })
         .to_string();
+        let body = check_svid_body(&kernel, &birth, &artifact, &artifact.certificate_pem);
         let kill_response =
             exchange_one_http_request(&kernel, &http_post_request("/kill", &kill_body));
         assert!(
             kill_response.starts_with("HTTP/1.1 200"),
             "POST /kill must revoke the live instance: {kill_response}"
         );
-        let body = check_svid_body(&kernel, &birth, &artifact, &artifact.certificate_pem);
         let decision = super::check_svid_request_from_json(&kernel, body.as_bytes())
             .expect("the host check-svid path must return a decision");
         assert_eq!(decision.result, "refused");
