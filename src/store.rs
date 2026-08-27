@@ -948,6 +948,10 @@ impl Store {
     /// current public key and is not a signed issuer_member_add public key,
     /// drop that extra in memory. Do not write the file. A planted extra
     /// is not a live verify key.
+    /// If unsigned issuer.json current_public_key does not match
+    /// issuer.secret, set the in-memory current public key to the secret
+    /// public key. Do not write the file. A planted current is not a live
+    /// verify key.
     pub fn load_issuer(&self) -> Result<Issuer> {
         if !self.issuer_path().exists() {
             return Err(Error::kernel(
@@ -1028,6 +1032,16 @@ impl Store {
                     public_key_hex: hex.to_string(),
                     kill_date: *kill_date,
                 });
+        }
+        if let Ok(secret) = self.load_secret() {
+            if let Ok(from_secret) =
+                crate::issuer_crypto::public_key_hexadecimal_from_secret(&secret)
+            {
+                let from_secret = from_secret.trim().to_string();
+                if !from_secret.is_empty() && issuer.current_public_key.trim() != from_secret {
+                    issuer.current_public_key = from_secret;
+                }
+            }
         }
         let signed_members = self.signed_issuer_member_public_keys()?;
         let current = issuer.current_public_key.trim().to_string();
