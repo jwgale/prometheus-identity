@@ -5456,6 +5456,186 @@ mod tests {
     }
 
     #[test]
+    fn cold_restore_at_threshold_two_host_birth_and_present_need_the_outside_member() {
+        use crate::kernel::Kernel;
+        use tempfile::tempdir;
+
+        let source_directory = tempdir().expect("create a source directory");
+        let source = Kernel::open(source_directory.path());
+        source.initialize().expect("initialize the source issuer");
+        let custody_directory = tempdir().expect("create a member-two custody directory");
+        let outside = custody_directory.path().join("member-two.secret");
+        raise_live_host_issuance_threshold_two(&source, &outside);
+        let agent_type = laboratory_agent_type(&source);
+
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        let backup_body = serde_json::json!({
+            "path": backup.display().to_string(),
+            "confirm": "backup",
+        })
+        .to_string();
+        let backup_response =
+            exchange_one_http_request(&source, &http_post_request("/backup", &backup_body));
+        assert!(
+            backup_response.starts_with("HTTP/1.1 200"),
+            "POST /backup must succeed on the live issuing host at n=2: {backup_response}"
+        );
+        let stray_backup: Vec<_> = std::fs::read_dir(&backup)
+            .expect("read the backup")
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("issuer-member-")
+            })
+            .collect();
+        assert!(
+            stray_backup.is_empty(),
+            "POST /backup at n=2 must not copy issuer-member secrets"
+        );
+
+        let dest_directory = tempdir().expect("create an empty restore destination");
+        let dest = Kernel::open(dest_directory.path());
+        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback()).expect(
+            "an issuing host with empty data must start so POST /restore can write",
+        );
+        let restore_body = serde_json::json!({
+            "from": backup.display().to_string(),
+            "confirm": "restore",
+        })
+        .to_string();
+        let restore_response =
+            exchange_one_http_request(&dest, &http_post_request("/restore", &restore_body));
+        assert!(
+            restore_response.starts_with("HTTP/1.1 200"),
+            "POST /restore onto empty data must succeed: {restore_response}"
+        );
+        let restore_payload = http_body(&restore_response);
+        let restore_value: serde_json::Value = serde_json::from_str(restore_payload)
+            .expect("POST /restore must return RestoreDiagnostics JSON");
+        assert_eq!(
+            restore_value["operation_normal"].as_bool(),
+            Some(true),
+            "POST /restore at n=2 must report operation_normal: {restore_payload}"
+        );
+        assert_eq!(
+            restore_value["restore_succeeded"].as_bool(),
+            Some(true),
+            "POST /restore at n=2 must report restore_succeeded: {restore_payload}"
+        );
+        assert_body_has_no_secrets(&dest, restore_payload, None, "POST /restore at n=2 secrets lock");
+
+        let birth_without = serde_json::json!({
+            "agent_type_id": agent_type.id,
+            "owner": "laboratory",
+            "intent": "read",
+            "audience": "internal",
+            "on_behalf_of": "autonomous",
+        })
+        .to_string();
+        assert_live_host_write_refuses_without_member_secret_path(
+            &dest,
+            "/birth",
+            &birth_without,
+            "POST /birth on restored dest at n=2 without the outside member",
+        );
+        let instances_after_refuse = dest
+            .store()
+            .list_instances()
+            .expect("a refused dest birth must leave the instance list");
+        assert!(
+            instances_after_refuse.is_empty(),
+            "a refused dest birth without the outside member must not persist an instance"
+        );
+
+        let birth_with = serde_json::json!({
+            "agent_type_id": agent_type.id,
+            "owner": "laboratory",
+            "intent": "read",
+            "audience": "internal",
+            "on_behalf_of": "autonomous",
+            "member_secret_path": outside.to_string_lossy(),
+        })
+        .to_string();
+        let birth_response =
+            exchange_one_http_request(&dest, &http_post_request("/birth", &birth_with));
+        assert!(
+            birth_response.starts_with("HTTP/1.1 200"),
+            "POST /birth on restored dest at n=2 with the outside member must return 200: {birth_response}"
+        );
+        let birth_payload = http_body(&birth_response);
+        let birth_value: serde_json::Value =
+            serde_json::from_str(birth_payload).expect("POST /birth must return JSON");
+        let instance_id = birth_value["instance_id"]
+            .as_str()
+            .expect("POST /birth must return instance_id")
+            .to_string();
+        let capability_id = birth_value["capability_id"]
+            .as_str()
+            .expect("POST /birth must return capability_id")
+            .to_string();
+        let holder_path = dest
+            .store()
+            .holder_secret_path(&instance_id)
+            .display()
+            .to_string();
+        assert_body_has_no_secrets(
+            &dest,
+            birth_payload,
+            Some(&instance_id),
+            "POST /birth on restored dest at n=2 with the outside member",
+        );
+
+        let challenge_body = serde_json::json!({
+            "instance_id": instance_id,
+            "member_secret_path": outside.to_string_lossy(),
+        })
+        .to_string();
+        let challenge_response =
+            exchange_one_http_request(&dest, &http_post_request("/challenge", &challenge_body));
+        assert!(
+            challenge_response.starts_with("HTTP/1.1 200"),
+            "POST /challenge on restored dest at n=2 with the outside member must return 200: {challenge_response}"
+        );
+        let challenge_value: serde_json::Value =
+            serde_json::from_str(http_body(&challenge_response))
+                .expect("POST /challenge must return JSON");
+        let present_body = serde_json::json!({
+            "instance_id": instance_id,
+            "capability_id": capability_id,
+            "intent": "read",
+            "audience": "internal",
+            "holder_secret_path": holder_path,
+            "challenge_nonce": challenge_value["challenge_nonce"],
+            "on_behalf_of": "autonomous",
+            "member_secret_path": outside.to_string_lossy(),
+        })
+        .to_string();
+        let present_response =
+            exchange_one_http_request(&dest, &http_post_request("/present-svid", &present_body));
+        assert!(
+            present_response.starts_with("HTTP/1.1 200"),
+            "POST /present-svid on restored dest at n=2 with the outside member must return 200: {present_response}"
+        );
+        let present_payload = http_body(&present_response);
+        let present_value: serde_json::Value =
+            serde_json::from_str(present_payload).expect("POST /present-svid must return JSON");
+        assert!(
+            present_value["presentation_json"].as_str().is_some(),
+            "POST /present-svid must return presentation_json"
+        );
+        assert_body_has_no_secrets(
+            &dest,
+            present_payload,
+            Some(&instance_id),
+            "POST /present-svid on restored dest at n=2 with the outside member",
+        );
+        let _keep_custody = custody_directory;
+    }
+
+    #[test]
     fn check_only_host_refuses_backup_and_restore() {
         let (_directory, kernel) = laboratory_verifier_kernel();
         let mode = super::HostMode::check_only_loopback();

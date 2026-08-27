@@ -15372,4 +15372,133 @@ mod tests {
             "unexpected present-after-kill-accept error: {refuse}"
         );
     }
+    #[test]
+    fn cold_restore_at_threshold_two_present_needs_the_outside_member() {
+        let (_source_directory, kernel) = laboratory_kernel();
+        let (custody_directory, outside) = add_outside_member_two(&kernel);
+        kernel
+            .set_issuer_threshold(2)
+            .expect("set n=2 with member two in hand");
+        let agent_type = laboratory_agent_type(&kernel, "payments", 2);
+        let birth = kernel
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect("birth_write on the source issuer at n=2");
+        let source_nonce = fresh_challenge(&kernel, &birth.instance);
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        kernel
+            .export_issuer_backup(&backup)
+            .expect("export a laboratory backup outside the data directory");
+        let stray_backup: Vec<_> = std::fs::read_dir(&backup)
+            .expect("read the backup")
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("issuer-member-")
+            })
+            .collect();
+        assert!(
+            stray_backup.is_empty(),
+            "the backup must not include issuer-member secrets"
+        );
+        let dest_directory = tempdir().expect("create a restore destination");
+        let dest_root = dest_directory.path().join("restored");
+        let restored = Kernel::restore_from_backup(&backup, &dest_root)
+            .expect("restore onto an empty issuing store");
+        let diagnostics = restored
+            .restore_diagnostics(&backup)
+            .expect("restore diagnostics after honest restore at n=2");
+        assert!(
+            diagnostics.restore_succeeded && diagnostics.operation_normal,
+            "honest restore at n=2 must report restore_succeeded and operation_normal"
+        );
+        let source_key = first_issuer_public_key(&kernel);
+        assert_eq!(
+            first_issuer_public_key(&restored),
+            source_key,
+            "the restored issuer public key must equal the source issuer public key"
+        );
+        assert!(
+            diagnostics.member_two_absent_from_store,
+            "dest must not hold issuer-member secrets"
+        );
+        let birth_error = restored
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect_err("birth must refuse on the restored n=2 store without member two");
+        let birth_text = birth_error.to_string();
+        assert!(
+            birth_text.contains("only")
+                && (birth_text.contains("secret") || birth_text.contains("member")),
+            "unexpected missing-custody birth error: {birth_error}"
+        );
+        let mint_error = restored
+            .mint_capability(&birth.instance.id, "read", "payments", None)
+            .expect_err("mint must refuse on the restored n=2 store without member two");
+        let mint_text = mint_error.to_string();
+        assert!(
+            mint_text.contains("only")
+                && (mint_text.contains("secret") || mint_text.contains("member")),
+            "unexpected missing-custody mint error: {mint_error}"
+        );
+        let present_error = restored
+            .present_capability(
+                &birth.instance.id,
+                &birth.capability.id,
+                Some(&holder_proof(&restored, &birth.instance)),
+                Some(&source_nonce),
+            )
+            .expect_err("present must refuse on the restored n=2 store without member two");
+        let present_text = present_error.to_string();
+        assert!(
+            present_text.contains("only")
+                && (present_text.contains("secret") || present_text.contains("member")),
+            "unexpected missing-custody present error: {present_error}"
+        );
+        restored
+            .store()
+            .register_extra_member_secret_path(outside.clone())
+            .expect("register the same outside member-two file");
+        restored
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect("birth must succeed after the outside member-two path is registered");
+        restored
+            .mint_capability(&birth.instance.id, "read", "payments", None)
+            .expect("mint must succeed after the outside member-two path is registered");
+        let restored_present =
+            laboratory_signed_presentation(&restored, &birth.instance, &birth.capability);
+        restored
+            .verify_presentation(&restored_present)
+            .expect("an honest present from the restored live instance must verify");
+        let (_verifier_directory, verifier) = laboratory_kernel();
+        verifier
+            .accept_issuer_public_key(&source_key)
+            .expect("store C pins the original issuer public key");
+        verifier
+            .verify_presentation(&restored_present)
+            .expect("a store that pinned the original public key must allow the restored present");
+        let _keep_custody = custody_directory;
+    }
 }
