@@ -1038,6 +1038,10 @@ impl Store {
     /// If a signed seal_accept note records a sealed public key
     /// that is not in the file, restore that accepted seal in
     /// memory. Do not write the file. A planted drop is not live.
+    /// If unsigned issuer.json accepted_sealed_issuer_keys holds a
+    /// key that no signed seal_accept note records, drop that extra
+    /// in memory. Do not write the file. A planted extra is not an
+    /// accept.
     /// Honest issuer_seal on the issuing store is not a seal_accept
     /// line. That first seal write does not require a prior seal_accept.
     /// If unsigned issuer.json public_keys holds a key that is not the
@@ -1156,6 +1160,13 @@ impl Store {
                 kill_date: *kill_date,
             });
         }
+        issuer.accepted_sealed_issuer_keys.retain(|entry| {
+            let hex = entry.public_key_hex.trim();
+            !hex.is_empty()
+                && signed_accepted_seal
+                    .iter()
+                    .any(|(key, _)| key.trim() == hex)
+        });
         if let Ok(secret) = self.load_secret() {
             if let Ok(from_secret) =
                 crate::issuer_crypto::public_key_hexadecimal_from_secret(&secret)

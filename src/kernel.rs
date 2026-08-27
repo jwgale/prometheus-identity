@@ -6931,6 +6931,108 @@ mod tests {
     }
 
     #[test]
+    fn verify_does_not_treat_a_planted_extra_accepted_sealed_issuer_key_as_accept() {
+        let (first_directory, first) = laboratory_kernel();
+        let start = Utc::now();
+        first.set_now_for_test(start);
+        let (instance, capability) = laboratory_capability(&first);
+        let honest = laboratory_signed_presentation(&first, &instance, &capability);
+        let stolen_secret = first
+            .store()
+            .load_secret()
+            .expect("load store A issuer secret");
+        let issuer_public_key = first_issuer_public_key(&first);
+        first.seal_issuer(60).expect("store A seal must succeed");
+        let seal_directory = first_directory.path().join("seal-bundle");
+        first
+            .export_seal_bundle(&seal_directory)
+            .expect("store A must export the public seal artifacts");
+        let (_second_directory, second) = laboratory_kernel();
+        second.set_now_for_test(start);
+        second
+            .accept_issuer_public_key(&issuer_public_key)
+            .expect("store B pins store A current key");
+        second
+            .verify_presentation(&honest)
+            .expect("the honest present must verify on store B before any plant");
+        let issuer_path = second.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read store B issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse store B issuer.json");
+        planted["accepted_sealed_issuer_keys"] = serde_json::json!([{
+            "public_key_hex": issuer_public_key,
+            "kill_date": (start + Duration::seconds(60)).to_rfc3339(),
+        }]);
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant an extra accepted_sealed_issuer_keys entry without save_issuer");
+        let log = second
+            .store()
+            .read_log()
+            .expect("read store B issuance log");
+        assert!(
+            !log.iter().any(|event| event.operation == "seal_accept"),
+            "store B must have no signed seal_accept line"
+        );
+        let loaded = second
+            .store()
+            .load_issuer()
+            .expect("load store B after the plant");
+        assert!(
+            loaded
+                .accepted_sealed_issuer_keys
+                .iter()
+                .all(|entry| entry.public_key_hex.trim() != issuer_public_key.trim()),
+            "load_issuer must shrink a planted extra accepted seal that has no signed line"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read store B issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk = still_planted
+            .get("accepted_sealed_issuer_keys")
+            .and_then(|value| value.as_array())
+            .expect("planted accepted_sealed_issuer_keys must remain on disk");
+        assert!(
+            on_disk.iter().any(|value| value
+                .get("public_key_hex")
+                .and_then(|key| key.as_str())
+                == Some(issuer_public_key.as_str())),
+            "load_issuer must not write the file back"
+        );
+        assert!(
+            first.now() < instance.expires,
+            "the instance must still be unexpired so remaining life is not the refuse"
+        );
+        second
+            .verify_presentation(&honest)
+            .expect(
+                "store B must not treat a planted extra accepted seal without a signed seal_accept line as an accept",
+            );
+        second
+            .accept_seal_bundle(&seal_directory)
+            .expect("store B must still accept the honest seal bundle after the plant");
+        let error = second
+            .verify_presentation(&honest)
+            .expect_err("store B must refuse present after the signed seal_accept line");
+        let text = error.to_string();
+        assert!(
+            text.contains("seal accept") || text.contains("issuer death"),
+            "store B must name seal accept after the signed line: {error}"
+        );
+        assert_ne!(
+            second
+                .store()
+                .load_secret()
+                .expect("load store B issuer secret"),
+            stolen_secret,
+            "issuer.secret must stay on store A and must not be copied to store B"
+        );
+    }
+
+    #[test]
     fn store_b_act_accept_refuses_after_seal_accept() {
         let (first_directory, first) = laboratory_kernel();
         let (instance, capability) = laboratory_capability(&first);
@@ -16726,4 +16828,5 @@ mod tests {
         let _keep_three = three_custody;
         let _keep_nonce = source_nonce;
     }
+
 }
