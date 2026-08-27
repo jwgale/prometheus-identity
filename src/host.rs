@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::path::Path;
 use std::time::Duration;
 
 #[derive(Debug, Deserialize)]
@@ -531,6 +532,38 @@ struct RotateResponse {
 }
 
 /// POST /seal body. Reuse Kernel::seal_issuer. No second seal path.
+/// POST /backup body. Reuse Kernel::export_issuer_backup. No second backup path.
+/// Confirm must equal the exact word backup.
+#[derive(Debug, Deserialize)]
+struct BackupRequest {
+    path: String,
+    /// Must equal the exact word backup. Missing or a mismatch is refused so a wrong click does not write a backup.
+    #[serde(default)]
+    confirm: Option<String>,
+}
+
+/// POST /backup response. Path only. Secret bytes are not included.
+#[derive(Debug, Serialize)]
+struct BackupResponse {
+    path: String,
+}
+
+/// POST /restore body. Reuse Kernel::restore_from_backup. No second restore path.
+/// Confirm must equal the exact word restore. Empty dest only.
+#[derive(Debug, Deserialize)]
+struct RestoreRequest {
+    from: String,
+    /// Must equal the exact word restore. Missing or a mismatch is refused so a wrong click does not restore.
+    #[serde(default)]
+    confirm: Option<String>,
+}
+
+/// POST /diagnose body. Reuse Kernel::restore_diagnostics. Secret bytes are not included.
+#[derive(Debug, Deserialize)]
+struct DiagnoseRequest {
+    from: String,
+}
+
 /// Confirm must equal the exact word seal. Missing or a mismatch is refused.
 #[derive(Debug, Deserialize)]
 struct SealRequest {
@@ -1369,6 +1402,62 @@ fn apply_rotate_request(kernel: &Kernel, request: &RotateRequest) -> Result<Stri
     .map_err(Error::from)
 }
 
+/// Reuse Kernel::export_issuer_backup. Do not invent a second backup path.
+/// Confirm must equal the exact word backup.
+fn apply_backup_request(kernel: &Kernel, request: &BackupRequest) -> Result<String> {
+    let confirm = trimmed_optional(request.confirm.as_deref());
+    if confirm.as_deref() != Some("backup") {
+        return Err(Error::denied(
+            "The confirm field must equal the exact word backup. A missing confirm or a confirm mismatch is refused so a wrong click does not write a backup. The check fails closed.",
+        ));
+    }
+    let path = request.path.trim();
+    if path.is_empty() {
+        return Err(Error::denied(
+            "The backup path is required. The path must live outside the data directory. The check fails closed.",
+        ));
+    }
+    let dest = Path::new(path);
+    kernel.export_issuer_backup(dest)?;
+    serde_json::to_string(&BackupResponse {
+        path: dest.display().to_string(),
+    })
+    .map_err(Error::from)
+}
+
+/// Reuse Kernel::restore_from_backup. Do not invent a second restore path.
+/// Confirm must equal the exact word restore. Empty dest only.
+/// Restore onto a dest that already has an issuer is refused.
+fn apply_restore_request(kernel: &Kernel, request: &RestoreRequest) -> Result<String> {
+    let confirm = trimmed_optional(request.confirm.as_deref());
+    if confirm.as_deref() != Some("restore") {
+        return Err(Error::denied(
+            "The confirm field must equal the exact word restore. A missing confirm or a confirm mismatch is refused so a wrong click does not restore. The check fails closed.",
+        ));
+    }
+    let from = request.from.trim();
+    if from.is_empty() {
+        return Err(Error::denied(
+            "The restore from path is required. The check fails closed.",
+        ));
+    }
+    Kernel::restore_from_backup(Path::new(from), kernel.store().root())?;
+    let diagnostics = kernel.restore_diagnostics(Path::new(from))?;
+    serde_json::to_string(&diagnostics).map_err(Error::from)
+}
+
+/// Reuse Kernel::restore_diagnostics. Secret bytes are not returned.
+fn apply_diagnose_request(kernel: &Kernel, request: &DiagnoseRequest) -> Result<String> {
+    let from = request.from.trim();
+    if from.is_empty() {
+        return Err(Error::denied(
+            "The diagnose from path is required. The check fails closed.",
+        ));
+    }
+    let diagnostics = kernel.restore_diagnostics(Path::new(from))?;
+    serde_json::to_string(&diagnostics).map_err(Error::from)
+}
+
 /// Reuse Kernel::seal_issuer. Do not invent a second seal path.
 /// Confirm must equal the exact word seal. Member-two rules stay on the kernel.
 fn apply_seal_request(kernel: &Kernel, request: &SealRequest) -> Result<String> {
@@ -2076,6 +2165,36 @@ fn handle_client(kernel: &Kernel, stream: &mut TcpStream, mode: &HostMode) -> Re
             Err(error) => write_refused_response(stream, error),
         };
     }
+    if method == "POST" && path == "/backup" {
+        let request: BackupRequest = match serde_json::from_slice(&body) {
+            Ok(request) => request,
+            Err(error) => return write_bad_request_response(stream, error),
+        };
+        return match apply_backup_request(kernel, &request) {
+            Ok(payload) => write_json_response(stream, 200, "OK", &payload),
+            Err(error) => write_refused_response(stream, error),
+        };
+    }
+    if method == "POST" && path == "/restore" {
+        let request: RestoreRequest = match serde_json::from_slice(&body) {
+            Ok(request) => request,
+            Err(error) => return write_bad_request_response(stream, error),
+        };
+        return match apply_restore_request(kernel, &request) {
+            Ok(payload) => write_json_response(stream, 200, "OK", &payload),
+            Err(error) => write_refused_response(stream, error),
+        };
+    }
+    if method == "POST" && path == "/diagnose" {
+        let request: DiagnoseRequest = match serde_json::from_slice(&body) {
+            Ok(request) => request,
+            Err(error) => return write_bad_request_response(stream, error),
+        };
+        return match apply_diagnose_request(kernel, &request) {
+            Ok(payload) => write_json_response(stream, 200, "OK", &payload),
+            Err(error) => write_refused_response(stream, error),
+        };
+    }
     if method == "POST" && path == "/rotate" {
         let request: RotateRequest = match serde_json::from_slice(&body) {
             Ok(request) => request,
@@ -2305,7 +2424,7 @@ fn handle_client(kernel: &Kernel, stream: &mut TcpStream, mode: &HostMode) -> Re
             stream,
             404,
             "Not Found",
-            r#"{"result":"refused","reason":"The path is not GET /, GET /laboratory, GET /health, GET /.well-known/prometheus-check, GET /status, GET /issuer-public, GET /instances, GET /agent-types, POST /check, POST /check-svid, POST /check-wimse, POST /challenge, POST /verifier-challenge, POST /sign-holder-nonce, POST /present-svid, POST /present-wimse, POST /birth, POST /kill, POST /seal, POST /rotate, POST /seal-export, POST /seal-accept, POST /previous-key-export, POST /previous-key-accept, POST /kill-export, POST /kill-accept, POST /issuer-accept, POST /act-export, POST /act-accept, POST /agent-type, POST /spawn, POST /member-two, POST /set-verify-threshold, POST /set-issuer-threshold, POST /runtime-check, POST /well-known-follow, or POST /operator-pin."}"#,
+            r#"{"result":"refused","reason":"The path is not GET /, GET /laboratory, GET /health, GET /.well-known/prometheus-check, GET /status, GET /issuer-public, GET /instances, GET /agent-types, POST /check, POST /check-svid, POST /check-wimse, POST /challenge, POST /verifier-challenge, POST /sign-holder-nonce, POST /present-svid, POST /present-wimse, POST /birth, POST /kill, POST /seal, POST /rotate, POST /seal-export, POST /seal-accept, POST /previous-key-export, POST /previous-key-accept, POST /kill-export, POST /kill-accept, POST /issuer-accept, POST /act-export, POST /act-accept, POST /agent-type, POST /spawn, POST /member-two, POST /set-verify-threshold, POST /set-issuer-threshold, POST /backup, POST /restore, POST /diagnose, POST /runtime-check, POST /well-known-follow, or POST /operator-pin."}"#,
         );
     }
     if path == "/check-svid" {
@@ -2711,6 +2830,14 @@ pub fn serve_loopback_listener_with_mode(
 /// Prepare a store for host start. A check-only host needs issuer.json and
 /// does not require a live mint issuer. This host does not load issuer.secret.
 pub fn prepare_host_store(kernel: &Kernel, mode: &HostMode) -> Result<()> {
+    if !kernel.store().issuer_path().exists() && !kernel.store().secret_path().exists() {
+        if mode.check_only {
+            return Err(Error::denied(
+                "A check-only host needs issuer.json. Create Agent Principal and mint paths are refused. The check fails closed.",
+            ));
+        }
+        return Ok(());
+    }
     let _issuer = kernel.store().load_issuer()?;
     if !mode.check_only {
         kernel.require_issuer_not_sealed()?;
@@ -2750,7 +2877,7 @@ fn run_host_with_mode(kernel: &Kernel, listen_address: &str, mode: HostMode) -> 
         );
     } else {
         eprintln!(
-            "The Prometheus check host is listening on {address}. This host binds to a loopback address only. This host answers GET /, GET /laboratory, GET /health, GET /.well-known/prometheus-check, GET /status, GET /issuer-public, GET /instances, GET /agent-types, POST /check, POST /check-svid, POST /check-wimse, POST /challenge, POST /verifier-challenge, POST /sign-holder-nonce, POST /present-svid, POST /present-wimse, POST /birth, POST /kill, POST /seal, POST /rotate, POST /seal-export, POST /seal-accept, POST /previous-key-export, POST /previous-key-accept, POST /kill-export, POST /kill-accept, POST /issuer-accept, POST /act-export, POST /act-accept, POST /agent-type, POST /spawn, POST /member-two, POST /set-verify-threshold, POST /set-issuer-threshold, POST /runtime-check, POST /well-known-follow, and POST /operator-pin. POST /check-wimse binds HTTP @method, @request-target, and content-digest. Open http://{address}/ in a browser to use the later user interface. The laboratory operator page remains at GET /laboratory."
+            "The Prometheus check host is listening on {address}. This host binds to a loopback address only. This host answers GET /, GET /laboratory, GET /health, GET /.well-known/prometheus-check, GET /status, GET /issuer-public, GET /instances, GET /agent-types, POST /check, POST /check-svid, POST /check-wimse, POST /challenge, POST /verifier-challenge, POST /sign-holder-nonce, POST /present-svid, POST /present-wimse, POST /birth, POST /kill, POST /seal, POST /rotate, POST /seal-export, POST /seal-accept, POST /previous-key-export, POST /previous-key-accept, POST /kill-export, POST /kill-accept, POST /issuer-accept, POST /act-export, POST /act-accept, POST /agent-type, POST /spawn, POST /member-two, POST /set-verify-threshold, POST /set-issuer-threshold, POST /backup, POST /restore, POST /diagnose, POST /runtime-check, POST /well-known-follow, and POST /operator-pin. POST /check-wimse binds HTTP @method, @request-target, and content-digest. Open http://{address}/ in a browser to use the later user interface. The laboratory operator page remains at GET /laboratory."
         );
     }
     for stream in listener.incoming() {
@@ -4908,6 +5035,246 @@ mod tests {
         assert!(
             public_spawn.contains("HTTP/1.1 403"),
             "public check-only POST /spawn must be refused: {public_spawn}"
+        );
+    }
+
+    #[test]
+    fn the_host_backup_path_writes_outside_and_refuses_inside_the_data_directory() {
+        use crate::kernel::Kernel;
+        use tempfile::tempdir;
+
+        let directory = tempdir().expect("create a temporary directory");
+        let kernel = Kernel::open(directory.path());
+        kernel.initialize().expect("initialize the issuer");
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        let body = serde_json::json!({
+            "path": backup.display().to_string(),
+            "confirm": "backup",
+        })
+        .to_string();
+        let response = exchange_one_http_request(&kernel, &http_post_request("/backup", &body));
+        assert!(
+            response.starts_with("HTTP/1.1 200"),
+            "POST /backup must write an outside path: {response}"
+        );
+        let payload = http_body(&response);
+        let value: serde_json::Value =
+            serde_json::from_str(payload).expect("POST /backup must return JSON");
+        let expected_path = backup.display().to_string();
+        assert_eq!(
+            value["path"].as_str(),
+            Some(expected_path.as_str()),
+            "POST /backup must return path only: {payload}"
+        );
+        assert_eq!(
+            value.as_object().map(|object| object.len()),
+            Some(1),
+            "POST /backup must return path only: {payload}"
+        );
+        assert!(
+            backup.join("issuer.json").exists() && backup.join("issuer.secret").exists(),
+            "POST /backup must write issuer.json and issuer.secret outside the data directory"
+        );
+        assert_body_has_no_secrets(&kernel, payload, None, "POST /backup secrets lock");
+
+        let inside = kernel.store().root().join("inside-backup");
+        let inside_body = serde_json::json!({
+            "path": inside.display().to_string(),
+            "confirm": "backup",
+        })
+        .to_string();
+        let inside_response =
+            exchange_one_http_request(&kernel, &http_post_request("/backup", &inside_body));
+        assert!(
+            inside_response.contains("HTTP/1.1 403"),
+            "POST /backup inside the data directory must be refused: {inside_response}"
+        );
+        let inside_payload = http_body(&inside_response);
+        assert!(
+            inside_payload.contains("data directory"),
+            "POST /backup inside the data directory must name the data directory refuse: {inside_payload}"
+        );
+        assert!(
+            !inside.exists(),
+            "a refused inside-data-directory backup must not write a backup directory"
+        );
+    }
+
+    #[test]
+    fn the_host_restore_path_refuses_a_store_that_already_has_an_issuer() {
+        use crate::kernel::Kernel;
+        use tempfile::tempdir;
+
+        let directory = tempdir().expect("create a temporary directory");
+        let kernel = Kernel::open(directory.path());
+        kernel.initialize().expect("initialize the issuer");
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        let backup_body = serde_json::json!({
+            "path": backup.display().to_string(),
+            "confirm": "backup",
+        })
+        .to_string();
+        let backup_response =
+            exchange_one_http_request(&kernel, &http_post_request("/backup", &backup_body));
+        assert!(
+            backup_response.starts_with("HTTP/1.1 200"),
+            "POST /backup must succeed before the restore refuse: {backup_response}"
+        );
+        let restore_body = serde_json::json!({
+            "from": backup.display().to_string(),
+            "confirm": "restore",
+        })
+        .to_string();
+        let response =
+            exchange_one_http_request(&kernel, &http_post_request("/restore", &restore_body));
+        assert!(
+            response.contains("HTTP/1.1 403"),
+            "POST /restore on a live issuing store must be refused: {response}"
+        );
+        let payload = http_body(&response);
+        assert!(
+            payload.contains("already has an issuer") || payload.contains("already"),
+            "POST /restore on a live issuing store must name the dest refuse: {payload}"
+        );
+    }
+
+    #[test]
+    fn the_host_restore_path_restores_onto_empty_data_and_diagnose_reports_operation_normal() {
+        use crate::kernel::Kernel;
+        use tempfile::tempdir;
+
+        let source_directory = tempdir().expect("create a source directory");
+        let source = Kernel::open(source_directory.path());
+        source.initialize().expect("initialize the source issuer");
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        let backup_body = serde_json::json!({
+            "path": backup.display().to_string(),
+            "confirm": "backup",
+        })
+        .to_string();
+        let backup_response =
+            exchange_one_http_request(&source, &http_post_request("/backup", &backup_body));
+        assert!(
+            backup_response.starts_with("HTTP/1.1 200"),
+            "POST /backup must succeed on the live issuing host: {backup_response}"
+        );
+
+        let dest_directory = tempdir().expect("create an empty restore destination");
+        let dest = Kernel::open(dest_directory.path());
+        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback()).expect(
+            "an issuing host with empty data must start so POST /restore can write",
+        );
+        let restore_body = serde_json::json!({
+            "from": backup.display().to_string(),
+            "confirm": "restore",
+        })
+        .to_string();
+        let restore_response =
+            exchange_one_http_request(&dest, &http_post_request("/restore", &restore_body));
+        assert!(
+            restore_response.starts_with("HTTP/1.1 200"),
+            "POST /restore onto empty data must succeed: {restore_response}"
+        );
+        let restore_payload = http_body(&restore_response);
+        let restore_value: serde_json::Value = serde_json::from_str(restore_payload)
+            .expect("POST /restore must return RestoreDiagnostics JSON");
+        assert_eq!(
+            restore_value["operation_normal"].as_bool(),
+            Some(true),
+            "POST /restore must report operation_normal: {restore_payload}"
+        );
+        assert_eq!(
+            restore_value["restore_succeeded"].as_bool(),
+            Some(true),
+            "POST /restore must report restore_succeeded: {restore_payload}"
+        );
+        assert_body_has_no_secrets(&dest, restore_payload, None, "POST /restore secrets lock");
+
+        let diagnose_body = serde_json::json!({
+            "from": backup.display().to_string(),
+        })
+        .to_string();
+        let diagnose_response =
+            exchange_one_http_request(&dest, &http_post_request("/diagnose", &diagnose_body));
+        assert!(
+            diagnose_response.starts_with("HTTP/1.1 200"),
+            "POST /diagnose must succeed after restore: {diagnose_response}"
+        );
+        let diagnose_payload = http_body(&diagnose_response);
+        let diagnose_value: serde_json::Value = serde_json::from_str(diagnose_payload)
+            .expect("POST /diagnose must return RestoreDiagnostics JSON");
+        assert_eq!(
+            diagnose_value["operation_normal"].as_bool(),
+            Some(true),
+            "POST /diagnose must report operation_normal: {diagnose_payload}"
+        );
+        assert_body_has_no_secrets(&dest, diagnose_payload, None, "POST /diagnose secrets lock");
+    }
+
+    #[test]
+    fn check_only_host_refuses_backup_and_restore() {
+        let (_directory, kernel) = laboratory_verifier_kernel();
+        let mode = super::HostMode::check_only_loopback();
+        super::prepare_host_store(&kernel, &mode)
+            .expect("a check-only host must start on a Store B verifier store");
+        for path in ["/backup", "/restore", "/diagnose"] {
+            let response =
+                exchange_one_http_request_with_mode(&kernel, &http_post_request(path, "{}"), &mode);
+            assert!(
+                response.contains("HTTP/1.1 403"),
+                "check-only POST {path} must be refused: {response}"
+            );
+            let payload = http_body(&response);
+            assert!(
+                payload.contains("check-only")
+                    && (payload.contains("Create Agent Principal") || payload.contains("mint")),
+                "check-only POST {path} must name Create Agent Principal or mint: {payload}"
+            );
+        }
+        let public_mode = super::HostMode::check_only_public();
+        let public_backup = exchange_one_http_request_with_mode(
+            &kernel,
+            &http_post_request("/backup", "{}"),
+            &public_mode,
+        );
+        assert!(
+            public_backup.contains("HTTP/1.1 403"),
+            "public check-only POST /backup must be refused: {public_backup}"
+        );
+    }
+
+    #[test]
+    fn the_laboratory_operator_page_includes_backup_restore_diagnose_controls() {
+        let laboratory = laboratory_operator_page_html();
+        assert!(
+            laboratory.contains("fetch(\"/backup\"") && laboratory.contains("confirm") && laboratory.contains("backup"),
+            "GET /laboratory must post POST /backup with confirm backup: {laboratory}"
+        );
+        assert!(
+            laboratory.contains("fetch(\"/restore\"")
+                && (laboratory.contains("exact word restore")
+                    || laboratory.contains("Type the word restore")),
+            "GET /laboratory must post POST /restore with confirm restore"
+        );
+        assert!(
+            laboratory.contains("fetch(\"/diagnose\""),
+            "GET /laboratory must post POST /diagnose"
+        );
+        let later = later_user_interface_html();
+        assert!(
+            later.contains("fetch(\"/backup\"") || later.contains("postJson(\"/backup\""),
+            "GET / must post POST /backup"
+        );
+        assert!(
+            later.contains("fetch(\"/restore\"") || later.contains("postJson(\"/restore\""),
+            "GET / must post POST /restore"
+        );
+        assert!(
+            later.contains("fetch(\"/diagnose\"") || later.contains("postJson(\"/diagnose\""),
+            "GET / must post POST /diagnose"
         );
     }
 

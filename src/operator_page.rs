@@ -213,6 +213,32 @@ button { margin-top: 0.85rem; padding: 0.4rem 0.8rem; }
 <p id="rotate-result">The issuer is not rotated on this page.</p>
 <pre id="rotate-body">rotate JSON is empty until rotate.</pre>
 
+<h2>Laboratory restore</h2>
+<p>Backup, restore, and diagnose reuse the kernel. This is issuing loopback only. Check-only hosts refuse these writes. Standing data-a is not the restore dest.</p>
+<p>The backup path must live outside the data directory. Restore onto a dest that already has an issuer is refused. Secret bytes are not returned.</p>
+<p>Type the word backup or restore to confirm. POST /diagnose takes a from path only.</p>
+
+<label for="backup-path">Backup path on this host</label>
+<input id="backup-path" name="path" type="text">
+<label for="backup-confirm">Type the word backup to confirm</label>
+<input id="backup-confirm" name="confirm" type="text">
+<button type="button" id="export-issuer-backup">Write the issuer backup</button>
+<p id="backup-result">No issuer backup has been written on this page.</p>
+<pre id="backup-body">backup JSON is empty until backup.</pre>
+
+<label for="restore-from">Restore from path</label>
+<input id="restore-from" name="from" type="text">
+<label for="restore-confirm">Type the word restore to confirm</label>
+<input id="restore-confirm" name="confirm" type="text">
+<button type="button" id="restore-issuer-backup">Restore onto this empty store</button>
+<p id="restore-result">No restore has run on this page.</p>
+<pre id="restore-body">restore JSON is empty until restore.</pre>
+
+<label for="diagnose-from">Diagnose from path</label>
+<input id="diagnose-from" name="from" type="text">
+<button type="button" id="diagnose-restore">Diagnose restore</button>
+<p id="diagnose-result">No restore diagnostics have run on this page.</p>
+<pre id="diagnose-body">diagnose JSON is empty until diagnose.</pre>
 
 <h2>Register member two</h2>
 <p>Type a local outside path. POST /member-two reuses the kernel member add. The host writes the second Module-Lattice member secret only at that path.</p>
@@ -550,7 +576,7 @@ function isThisOriginCheckBase(base) {
 function documentedPinPath(document, pinName) {
   var want = String(pinName || "").replace(/^\/+/, "").toLowerCase();
   if (!want) { throw new Error("The well-known check document does not name that operator pin. The check fails closed."); }
-  var writeVerbs = ["/birth", "/spawn", "/present-svid", "/present-wimse", "/agent-type", "/kill", "/seal", "/rotate", "/sign-holder-nonce", "/member-two", "/act-export", "/kill-export", "/seal-export", "/previous-key-export"];
+  var writeVerbs = ["/birth", "/spawn", "/present-svid", "/present-wimse", "/agent-type", "/kill", "/seal", "/rotate", "/sign-holder-nonce", "/member-two", "/act-export", "/kill-export", "/seal-export", "/previous-key-export", "/backup", "/restore", "/diagnose"];
   var lists = (document.operator_pin_paths || []).concat(document.checks || []);
   if (document.verifier_challenge) { lists = lists.concat([document.verifier_challenge]); }
   var found = null;
@@ -2077,6 +2103,141 @@ function sealIssuer() {
 }
 
 
+function exportIssuerBackup() {
+  var path = document.getElementById("backup-path").value.trim();
+  var confirmValue = document.getElementById("backup-confirm").value;
+  if (confirmValue !== "backup") {
+    document.getElementById("backup-result").textContent = "Type the exact word backup to confirm. A wrong click does not write a backup. The check fails closed.";
+    document.getElementById("backup-result").className = "result-refused";
+    return;
+  }
+  if (!path) {
+    document.getElementById("backup-result").textContent = "Type a backup path outside the data directory. The check fails closed.";
+    document.getElementById("backup-result").className = "result-refused";
+    return;
+  }
+  fetch("/backup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: path, confirm: confirmValue })
+  })
+    .then(function (response) {
+      return response.text().then(function (text) {
+        return { ok: response.ok, text: text };
+      });
+    })
+    .then(function (payload) {
+      try {
+        var data = JSON.parse(payload.text);
+        if (payload.ok && data.path) {
+          document.getElementById("backup-result").textContent = "The host wrote the issuer backup. The response returns the path only. Secret bytes are not returned. Member two is not in the backup.";
+          document.getElementById("backup-result").className = "result-allowed";
+          document.getElementById("backup-body").textContent = JSON.stringify(data, null, 2);
+          document.getElementById("backup-confirm").value = "";
+          document.getElementById("restore-from").value = data.path;
+          document.getElementById("diagnose-from").value = data.path;
+          return;
+        }
+        document.getElementById("backup-result").textContent = data.reason || "The host refused backup. The check fails closed.";
+        document.getElementById("backup-result").className = "result-refused";
+        document.getElementById("backup-body").textContent = payload.text;
+      } catch (error) {
+        document.getElementById("backup-result").textContent = "The backup response is not valid JSON. The check fails closed.";
+        document.getElementById("backup-result").className = "result-refused";
+      }
+    })
+    .catch(function () {
+      document.getElementById("backup-result").textContent = "The host did not write a backup. The check fails closed.";
+      document.getElementById("backup-result").className = "result-refused";
+    });
+}
+
+function restoreIssuerBackup() {
+  var from = document.getElementById("restore-from").value.trim();
+  var confirmValue = document.getElementById("restore-confirm").value;
+  if (confirmValue !== "restore") {
+    document.getElementById("restore-result").textContent = "Type the exact word restore to confirm. A wrong click does not restore. The check fails closed.";
+    document.getElementById("restore-result").className = "result-refused";
+    return;
+  }
+  if (!from) {
+    document.getElementById("restore-result").textContent = "Type a restore from path. Restore onto a dest that already has an issuer is refused. The check fails closed.";
+    document.getElementById("restore-result").className = "result-refused";
+    return;
+  }
+  fetch("/restore", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ from: from, confirm: confirmValue })
+  })
+    .then(function (response) {
+      return response.text().then(function (text) {
+        return { ok: response.ok, text: text };
+      });
+    })
+    .then(function (payload) {
+      try {
+        var data = JSON.parse(payload.text);
+        document.getElementById("restore-body").textContent = JSON.stringify(data, null, 2);
+        if (payload.ok && data.operation_normal) {
+          document.getElementById("restore-result").textContent = "Restore succeeded. operation_normal is yes. Secret bytes are not returned. Standing data-a is not the restore dest.";
+          document.getElementById("restore-result").className = "result-allowed";
+          document.getElementById("restore-confirm").value = "";
+          loadStatus();
+          return;
+        }
+        document.getElementById("restore-result").textContent = data.reason || "The host refused restore. Restore onto a dest that already has an issuer is refused. The check fails closed.";
+        document.getElementById("restore-result").className = "result-refused";
+      } catch (error) {
+        document.getElementById("restore-result").textContent = "The restore response is not valid JSON. The check fails closed.";
+        document.getElementById("restore-result").className = "result-refused";
+      }
+    })
+    .catch(function () {
+      document.getElementById("restore-result").textContent = "The host did not restore. The check fails closed.";
+      document.getElementById("restore-result").className = "result-refused";
+    });
+}
+
+function diagnoseRestore() {
+  var from = document.getElementById("diagnose-from").value.trim();
+  if (!from) {
+    document.getElementById("diagnose-result").textContent = "Type a diagnose from path. The check fails closed.";
+    document.getElementById("diagnose-result").className = "result-refused";
+    return;
+  }
+  fetch("/diagnose", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ from: from })
+  })
+    .then(function (response) {
+      return response.text().then(function (text) {
+        return { ok: response.ok, text: text };
+      });
+    })
+    .then(function (payload) {
+      try {
+        var data = JSON.parse(payload.text);
+        document.getElementById("diagnose-body").textContent = JSON.stringify(data, null, 2);
+        if (payload.ok) {
+          document.getElementById("diagnose-result").textContent = data.operation_normal ? "operation_normal is yes. Secret bytes are not returned." : "operation_normal is no. Secret bytes are not returned.";
+          document.getElementById("diagnose-result").className = data.operation_normal ? "result-allowed" : "result-refused";
+          return;
+        }
+        document.getElementById("diagnose-result").textContent = data.reason || "The host refused diagnose. The check fails closed.";
+        document.getElementById("diagnose-result").className = "result-refused";
+      } catch (error) {
+        document.getElementById("diagnose-result").textContent = "The diagnose response is not valid JSON. The check fails closed.";
+        document.getElementById("diagnose-result").className = "result-refused";
+      }
+    })
+    .catch(function () {
+      document.getElementById("diagnose-result").textContent = "The host did not diagnose. The check fails closed.";
+      document.getElementById("diagnose-result").className = "result-refused";
+    });
+}
+
 function registerMemberTwo() {
   var path = document.getElementById("member-two-secret-path").value;
   if (!path) {
@@ -2224,6 +2385,9 @@ document.getElementById("birth-instance").addEventListener("click", birthInstanc
 document.getElementById("kill-instance").addEventListener("click", killInstance);
 document.getElementById("seal-issuer").addEventListener("click", sealIssuer);
 document.getElementById("rotate-issuer").addEventListener("click", rotateIssuer);
+document.getElementById("export-issuer-backup").addEventListener("click", exportIssuerBackup);
+document.getElementById("restore-issuer-backup").addEventListener("click", restoreIssuerBackup);
+document.getElementById("diagnose-restore").addEventListener("click", diagnoseRestore);
 document.getElementById("register-member-two").addEventListener("click", registerMemberTwo);
 document.getElementById("set-verify-threshold").addEventListener("click", setVerifyThreshold);
 document.getElementById("set-issuer-threshold").addEventListener("click", setIssuerThreshold);

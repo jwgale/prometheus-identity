@@ -543,6 +543,27 @@ details.advanced > summary {
 <pre id="seal-export-event">event.json is empty until export.</pre>
 <pre id="seal-export-proof">proof.json is empty until export.</pre>
 <pre id="seal-export-tree-head">tree-head.json is empty until export.</pre>
+<h3>Laboratory restore</h3>
+<p>Backup, restore, and diagnose reuse the kernel on this issuing loopback host. Check-only hosts refuse these writes. The backup path must live outside the data directory. Restore onto a dest that already has an issuer is refused. Standing data-a is not the restore dest. Secret bytes are not returned.</p>
+<label for="backup-path">Backup path on this host</label>
+<input id="backup-path" name="path" type="text">
+<label for="backup-confirm">Type the word backup to confirm</label>
+<input id="backup-confirm" name="confirm" type="text">
+<button type="button" id="export-issuer-backup">Write the issuer backup</button>
+<p id="backup-result">No issuer backup has been written on this page.</p>
+<pre id="backup-body">backup JSON is empty until backup.</pre>
+<label for="restore-from">Restore from path</label>
+<input id="restore-from" name="from" type="text">
+<label for="restore-confirm">Type the word restore to confirm</label>
+<input id="restore-confirm" name="confirm" type="text">
+<button type="button" id="restore-issuer-backup">Restore onto this empty store</button>
+<p id="restore-result">No restore has run on this page.</p>
+<pre id="restore-body">restore JSON is empty until restore.</pre>
+<label for="diagnose-from">Diagnose from path</label>
+<input id="diagnose-from" name="from" type="text">
+<button type="button" id="diagnose-restore">Diagnose restore</button>
+<p id="diagnose-result">No restore diagnostics have run on this page.</p>
+<pre id="diagnose-body">diagnose JSON is empty until diagnose.</pre>
 <h3>Export an act bundle</h3>
 <p>After a successful check, POST /act-export returns receipt, proof, and tree_head. POST /act-accept on a verifier host reuses Kernel act accept.</p>
 <label for="act-export-receipt">Check receipt JSON</label>
@@ -1050,7 +1071,7 @@ function followWellKnownThenCheck(onRamp, usePath) {
 function documentedPinPath(document, pinName) {
   var want = String(pinName || "").replace(/^\/+/, "").toLowerCase();
   if (!want) { throw new Error("The well-known check document does not name that operator pin. The check fails closed."); }
-  var writeVerbs = ["/birth", "/spawn", "/present-svid", "/present-wimse", "/agent-type", "/kill", "/seal", "/rotate", "/sign-holder-nonce", "/member-two", "/act-export", "/kill-export", "/seal-export", "/previous-key-export"];
+  var writeVerbs = ["/birth", "/spawn", "/present-svid", "/present-wimse", "/agent-type", "/kill", "/seal", "/rotate", "/sign-holder-nonce", "/member-two", "/act-export", "/kill-export", "/seal-export", "/previous-key-export", "/backup", "/restore", "/diagnose"];
   var lists = (document.operator_pin_paths || []).concat(document.checks || []);
   if (document.verifier_challenge) { lists = lists.concat([document.verifier_challenge]); }
   var found = null;
@@ -1528,6 +1549,68 @@ function exportPreviousKey() {
     setResult("previous-key-export-result", error.message || "The host did not export a previous issuer key. The check fails closed.", false);
   });
 }
+function exportIssuerBackup() {
+  var path = el("backup-path").value.trim();
+  var confirmValue = el("backup-confirm").value;
+  if (confirmValue !== "backup") { setResult("backup-result", "Type the exact word backup to confirm. A wrong click does not write a backup. The check fails closed.", false); return; }
+  if (!path) { setResult("backup-result", "Type a backup path outside the data directory. The check fails closed.", false); return; }
+  postJson("/backup", { path: path, confirm: confirmValue }).then(function (payload) {
+    try {
+      var data = JSON.parse(payload.text);
+      el("backup-body").textContent = JSON.stringify(data, null, 2);
+      if (payload.ok && data.path) {
+        setResult("backup-result", "The host wrote the issuer backup. The response returns the path only. Secret bytes are not returned.", true);
+        el("backup-confirm").value = "";
+        el("restore-from").value = data.path;
+        el("diagnose-from").value = data.path;
+        return;
+      }
+      setResult("backup-result", data.reason || "The host refused backup. The check fails closed.", false);
+    } catch (error) {
+      setResult("backup-result", "The backup response is not valid JSON. The check fails closed.", false);
+    }
+  });
+}
+
+function restoreIssuerBackup() {
+  var from = el("restore-from").value.trim();
+  var confirmValue = el("restore-confirm").value;
+  if (confirmValue !== "restore") { setResult("restore-result", "Type the exact word restore to confirm. A wrong click does not restore. The check fails closed.", false); return; }
+  if (!from) { setResult("restore-result", "Type a restore from path. Restore onto a dest that already has an issuer is refused. The check fails closed.", false); return; }
+  postJson("/restore", { from: from, confirm: confirmValue }).then(function (payload) {
+    try {
+      var data = JSON.parse(payload.text);
+      el("restore-body").textContent = JSON.stringify(data, null, 2);
+      if (payload.ok && data.operation_normal) {
+        setResult("restore-result", "Restore succeeded. operation_normal is yes. Secret bytes are not returned. Standing data-a is not the restore dest.", true);
+        el("restore-confirm").value = "";
+        return;
+      }
+      setResult("restore-result", data.reason || "The host refused restore. Restore onto a dest that already has an issuer is refused. The check fails closed.", false);
+    } catch (error) {
+      setResult("restore-result", "The restore response is not valid JSON. The check fails closed.", false);
+    }
+  });
+}
+
+function diagnoseRestore() {
+  var from = el("diagnose-from").value.trim();
+  if (!from) { setResult("diagnose-result", "Type a diagnose from path. The check fails closed.", false); return; }
+  postJson("/diagnose", { from: from }).then(function (payload) {
+    try {
+      var data = JSON.parse(payload.text);
+      el("diagnose-body").textContent = JSON.stringify(data, null, 2);
+      if (payload.ok) {
+        setResult("diagnose-result", data.operation_normal ? "operation_normal is yes. Secret bytes are not returned." : "operation_normal is no. Secret bytes are not returned.", !!data.operation_normal);
+        return;
+      }
+      setResult("diagnose-result", data.reason || "The host refused diagnose. The check fails closed.", false);
+    } catch (error) {
+      setResult("diagnose-result", "The diagnose response is not valid JSON. The check fails closed.", false);
+    }
+  });
+}
+
 function registerMemberTwo() {
   var memberPath = (el("member-two-secret-path").value || "").trim();
   if (!memberPath) { setResult("member-two-result", "Type a local outside path before you register member two.", false); return; }
@@ -1717,6 +1800,9 @@ el("request-spawn-challenge").addEventListener("click", function () { requestSpa
 el("spawn-child").addEventListener("click", spawnChild);
 el("rotate-issuer").addEventListener("click", rotateIssuer);
 el("export-previous-key").addEventListener("click", exportPreviousKey);
+el("export-issuer-backup").addEventListener("click", exportIssuerBackup);
+el("restore-issuer-backup").addEventListener("click", restoreIssuerBackup);
+el("diagnose-restore").addEventListener("click", diagnoseRestore);
 el("register-member-two").addEventListener("click", registerMemberTwo);
 el("set-verify-threshold").addEventListener("click", setVerifyThreshold);
 el("set-issuer-threshold").addEventListener("click", setIssuerThreshold);
