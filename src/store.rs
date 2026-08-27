@@ -297,6 +297,16 @@ impl Store {
     /// already records. Honest accept writes the accepted previous key before
     /// that signed line exists. That first write is not an omit.
     ///
+    /// A later persist must not remove an accepted sealed issuer key or
+    /// postpone an accepted seal kill_date. Freeze is the earlier of
+    /// the unsigned file kill_date and the earliest signed kill_date on a
+    /// seal_accept note for that public key. A later persist must not
+    /// omit an accepted sealed key that a signed seal_accept note
+    /// already records. Honest accept writes the accepted seal before
+    /// that signed line exists. That first write is not an omit.
+    /// Honest issuer_seal on the issuing store is not a seal_accept line.
+    /// That first seal write does not require a prior seal_accept.
+    ///
     /// Emptying accepted_issuer_public_keys is not allow-all: verify still uses
     /// the current key and refuses an empty combined list. threshold_n cannot
     /// be lowered. crypto_profile and issuance_log are stored fields. They do
@@ -664,11 +674,21 @@ impl Store {
     /// accepted_sealed_issuer_keys cannot lose a stored key and cannot postpone
     /// a stored kill_date. Growing is the accept path. This is verifier state.
     /// Clearing an accepted seal is a golden-ticket-class raise.
+    /// Freeze is the earlier of the unsigned file kill_date and the earliest
+    /// signed kill_date on a seal_accept note for that public key.
+    /// A planted later file date must not become the freeze.
+    /// A persist must not omit a sealed key that a signed seal_accept
+    /// note already records. Freeze against that signed list, not only the file.
+    /// A planted empty list must not become the freeze.
+    /// Honest accept writes the accepted seal before the signed line exists.
+    /// That first write is not an omit.
+    /// Honest issuer_seal on the issuing store is not a seal_accept line.
     fn require_accepted_sealed_keys_not_raised(
         &self,
         stored: &Issuer,
         issuer: &Issuer,
     ) -> Result<()> {
+        let signed_accepted = self.signed_accepted_seal_kill_dates()?;
         for stored_sealed in &stored.accepted_sealed_issuer_keys {
             let stored_hex = stored_sealed.public_key_hex.trim();
             let matching: Vec<_> = issuer
@@ -681,7 +701,42 @@ impl Store {
                     "An accepted seal cannot be cleared. A later write that drops an accepted sealed issuer key is refused. Clearing an accepted seal is a golden-ticket-class raise. Seal accept is issuer death for verify. This is not a sixth identity record.",
                 ));
             }
-            if matching[0].kill_date > stored_sealed.kill_date {
+            let freeze = signed_accepted
+                .iter()
+                .find(|(key, _)| key.trim() == stored_hex)
+                .map(|(_, signed)| stored_sealed.kill_date.min(*signed))
+                .unwrap_or(stored_sealed.kill_date);
+            if matching[0].kill_date > freeze {
+                return Err(Error::denied(
+                    "An accepted seal kill_date is frozen after accept. A later write that moves that kill_date later is refused. Postponing an accepted seal is a golden-ticket-class raise. Only a shorter remaining life is allowed. This is not a sixth identity record.",
+                ));
+            }
+        }
+        for (signed_hex, signed_date) in &signed_accepted {
+            let signed_hex = signed_hex.trim();
+            if signed_hex.is_empty() {
+                continue;
+            }
+            let matching: Vec<_> = issuer
+                .accepted_sealed_issuer_keys
+                .iter()
+                .filter(|previous| previous.public_key_hex.trim() == signed_hex)
+                .collect();
+            if matching.is_empty() {
+                return Err(Error::denied(
+                    "A signed accepted seal cannot be omitted after accept. A later write that drops an accepted sealed issuer key that a signed seal_accept note already records is refused. Omitting the key would hide issuer death. That is a golden-ticket-class raise. Seal accept is issuer death for verify. This is not a sixth identity record.",
+                ));
+            }
+            let file_date = stored
+                .accepted_sealed_issuer_keys
+                .iter()
+                .find(|previous| previous.public_key_hex.trim() == signed_hex)
+                .map(|previous| previous.kill_date);
+            let freeze = match file_date {
+                Some(file) => file.min(*signed_date),
+                None => *signed_date,
+            };
+            if matching[0].kill_date > freeze {
                 return Err(Error::denied(
                     "An accepted seal kill_date is frozen after accept. A later write that moves that kill_date later is refused. Postponing an accepted seal is a golden-ticket-class raise. Only a shorter remaining life is allowed. This is not a sixth identity record.",
                 ));
@@ -884,6 +939,37 @@ impl Store {
         Ok(dates)
     }
 
+    /// Earliest parseable accepted-seal kill_date on a signed seal_accept
+    /// note. Walks read_log only. This function must not call load_issuer.
+    /// Each seal_accept note stores sealed_public_key as hex and kill_date
+    /// as RFC3339. The kill_date token is not the issuer.kill_date seal
+    /// prefix. Unparseable notes are skipped. The same sealed public key
+    /// on more than one accept line keeps the minimum date.
+    /// Honest issuer_seal on the issuing store is not a seal_accept line.
+    pub fn signed_accepted_seal_kill_dates(&self) -> Result<Vec<(String, DateTime<Utc>)>> {
+        let mut dates: Vec<(String, DateTime<Utc>)> = Vec::new();
+        for event in self.read_log()? {
+            if event.operation != "seal_accept" {
+                continue;
+            }
+            let Some(note) = event.note.as_deref() else {
+                continue;
+            };
+            let Some((public_key, kill_date)) = sealed_key_and_kill_date_from_accept_note(note)
+            else {
+                continue;
+            };
+            if let Some((_, existing)) = dates.iter_mut().find(|(key, _)| key == &public_key) {
+                if kill_date < *existing {
+                    *existing = kill_date;
+                }
+            } else {
+                dates.push((public_key, kill_date));
+            }
+        }
+        Ok(dates)
+    }
+
     /// Highest signed verify_threshold_n on a signed issuer_verify_threshold note.
     /// Walks read_log only. This function must not call load_issuer.
     /// Each issuer_verify_threshold note stores n after "verify_threshold_n to ".
@@ -944,6 +1030,16 @@ impl Store {
     /// If a signed previous_key_accept note records a previous public key
     /// that is not in the file, restore that accepted previous key in
     /// memory. Do not write the file. A planted drop is not live.
+    /// If an accepted_sealed_issuer_keys kill_date is later than the
+    /// earliest signed kill_date on a seal_accept note for that
+    /// public key, set the in-memory accepted seal kill_date to
+    /// that signed date. Do not write the file. A planted later
+    /// remaining life is not live.
+    /// If a signed seal_accept note records a sealed public key
+    /// that is not in the file, restore that accepted seal in
+    /// memory. Do not write the file. A planted drop is not live.
+    /// Honest issuer_seal on the issuing store is not a seal_accept
+    /// line. That first seal write does not require a prior seal_accept.
     /// If unsigned issuer.json public_keys holds a key that is not the
     /// current public key and is not a signed issuer_member_add public key,
     /// drop that extra in memory. Do not write the file. A planted extra
@@ -1032,6 +1128,33 @@ impl Store {
                     public_key_hex: hex.to_string(),
                     kill_date: *kill_date,
                 });
+        }
+        let signed_accepted_seal = self.signed_accepted_seal_kill_dates()?;
+        for entry in &mut issuer.accepted_sealed_issuer_keys {
+            let hex = entry.public_key_hex.trim();
+            let Some((_, signed)) = signed_accepted_seal
+                .iter()
+                .find(|(key, _)| key.trim() == hex)
+            else {
+                continue;
+            };
+            if entry.kill_date > *signed {
+                entry.kill_date = *signed;
+            }
+        }
+        for (public_key_hex, kill_date) in &signed_accepted_seal {
+            let hex = public_key_hex.trim();
+            let already_present = issuer
+                .accepted_sealed_issuer_keys
+                .iter()
+                .any(|entry| entry.public_key_hex.trim() == hex);
+            if already_present {
+                continue;
+            }
+            issuer.accepted_sealed_issuer_keys.push(PreviousIssuerKey {
+                public_key_hex: hex.to_string(),
+                kill_date: *kill_date,
+            });
         }
         if let Ok(secret) = self.load_secret() {
             if let Ok(from_secret) =
@@ -2164,6 +2287,42 @@ fn member_public_key_from_member_add_note(note: &str) -> Option<String> {
 /// Skip issuer.kill_date. Skip a note that does not parse. Do not panic.
 fn previous_key_and_kill_date_from_rotate_note(note: &str) -> Option<(String, DateTime<Utc>)> {
     const PUBLIC_PREFIX: &str = "previous_public_key=";
+    let start = note.find(PUBLIC_PREFIX)?;
+    let rest = &note[start + PUBLIC_PREFIX.len()..];
+    let public_key = rest
+        .split_whitespace()
+        .next()
+        .unwrap_or(rest)
+        .trim_end_matches('.')
+        .trim()
+        .to_string();
+    if public_key.is_empty() {
+        return None;
+    }
+    let mut search = note;
+    let kill_token = loop {
+        let Some(at) = search.find("kill_date=") else {
+            return None;
+        };
+        let before = &search[..at];
+        if before.ends_with("issuer.") {
+            search = &search[at + "kill_date=".len()..];
+            continue;
+        }
+        let after = &search[at + "kill_date=".len()..];
+        let token = after
+            .split_whitespace()
+            .next()
+            .unwrap_or(after)
+            .trim_end_matches('.');
+        break token;
+    };
+    let parsed = DateTime::parse_from_rfc3339(kill_token).ok()?;
+    Some((public_key, parsed.with_timezone(&Utc)))
+}
+
+fn sealed_key_and_kill_date_from_accept_note(note: &str) -> Option<(String, DateTime<Utc>)> {
+    const PUBLIC_PREFIX: &str = "sealed_public_key=";
     let start = note.find(PUBLIC_PREFIX)?;
     let rest = &note[start + PUBLIC_PREFIX.len()..];
     let public_key = rest

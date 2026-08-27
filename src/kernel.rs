@@ -3291,10 +3291,13 @@ impl Kernel {
         Ok(bundle)
     }
 
-    /// Accept a foreign seal bundle. Verify-only: do not mint, do not create
-    /// instance records, and do not write a second issuance.log line.
-    /// Persist accepted seal on this store issuer record as verifier state.
-    /// This store does not copy issuer.secret. Clearing an accepted seal is refused.
+    /// Accept a foreign seal bundle. Verify-only: do not mint and do not create
+    /// instance records. Persist accepted seal on this store issuer record as
+    /// verifier state. After persist, this store appends a signed seal_accept
+    /// issuance.log line. The signed kill date is live. This is verifier state
+    /// on the issuer record. This is not a sixth identity record. This is not a
+    /// public transparency log. This store does not copy issuer.secret.
+    /// Clearing an accepted seal is refused.
     pub fn accept_seal_bundle(&self, bundle_directory: &Path) -> Result<Issuer> {
         if bundle_directory.as_os_str().is_empty() {
             return Err(Error::denied(
@@ -3306,8 +3309,9 @@ impl Kernel {
     }
 
     /// Accept the three public seal artifacts. The loopback host reuses this path.
-    /// Do not invent a second accept path. Verify-only: do not mint, do not create
-    /// instance records, and do not write a second issuance.log line.
+    /// Do not invent a second accept path. Verify-only: do not mint and do not
+    /// create instance records. After persist, this store appends a signed
+    /// seal_accept issuance.log line.
     pub fn accept_seal_bundle_artifacts(
         &self,
         bundle: &crate::seal_bundle::SealBundle,
@@ -3365,7 +3369,26 @@ impl Kernel {
                 kill_date,
             });
         }
+        // Stolen Store B without member secrets must not write accepted
+        // seal death. Check member secrets before any write.
+        // append_log later would refuse, but save_issuer would already
+        // have written the accepted seal.
+        self.store
+            .member_secrets_for_threshold_sign("seal accept")?;
         self.store.save_issuer(&issuer)?;
+        self.store.append_log(&self.issuance_event(
+            "seal_accept",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(format!(
+                "Laboratory seal accept. This store pins a foreign sealed issuer public key and its kill date. sealed_public_key={public_key_hex} kill_date={}. After accept, present and act for that issuer pin are refused on this store. Remaining life is closed on this store. This is verifier state. This is not a sixth identity record. This is not a public transparency log. This store does not copy issuer.secret.",
+                kill_date.to_rfc3339()
+            )),
+        ))?;
         Ok(issuer)
     }
 
@@ -6678,6 +6701,232 @@ mod tests {
             removed.to_string().contains("accepted seal")
                 || removed.to_string().contains("cleared"),
             "store B must name the refused accepted-seal clear: {removed}"
+        );
+    }
+
+    #[test]
+    fn verify_refuses_a_planted_later_accepted_seal_kill_date() {
+        let (first_directory, first) = laboratory_kernel();
+        let start = Utc::now();
+        first.set_now_for_test(start);
+        let (instance, capability) = laboratory_capability(&first);
+        let honest = laboratory_signed_presentation(&first, &instance, &capability);
+        let stolen_secret = first
+            .store()
+            .load_secret()
+            .expect("load store A issuer secret");
+        let issuer_public_key = first_issuer_public_key(&first);
+        first.seal_issuer(60).expect("store A seal must succeed");
+        let seal_directory = first_directory.path().join("seal-bundle");
+        first
+            .export_seal_bundle(&seal_directory)
+            .expect("store A must export the public seal artifacts");
+        let (_second_directory, second) = laboratory_kernel();
+        second.set_now_for_test(start);
+        second
+            .accept_issuer_public_key(&issuer_public_key)
+            .expect("store B pins store A current key");
+        second
+            .verify_presentation(&honest)
+            .expect("the honest present must verify on store B before seal accept");
+        second
+            .accept_seal_bundle(&seal_directory)
+            .expect("store B must accept the seal bundle");
+        let log = second
+            .store()
+            .read_log()
+            .expect("read store B issuance log");
+        assert!(
+            log.iter().any(|event| event.operation == "seal_accept"),
+            "store B must append a signed seal_accept line"
+        );
+        let accepted = second.store().load_issuer().expect("load store B issuer");
+        assert_eq!(accepted.accepted_sealed_issuer_keys.len(), 1);
+        let honest_kill = accepted.accepted_sealed_issuer_keys[0].kill_date;
+        let planted_kill = start + Duration::seconds(3600);
+        let issuer_path = second.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read store B issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse store B issuer.json");
+        planted["accepted_sealed_issuer_keys"][0]["kill_date"] =
+            serde_json::Value::String(planted_kill.to_rfc3339());
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant a later accepted seal remaining life without save_issuer");
+        let loaded = second
+            .store()
+            .load_issuer()
+            .expect("load store B after the plant");
+        assert_eq!(
+            loaded.accepted_sealed_issuer_keys[0].kill_date,
+            honest_kill,
+            "load_issuer must overlay the signed accepted seal kill_date"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read store B issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk_planted = still_planted
+            .get("accepted_sealed_issuer_keys")
+            .and_then(|value| value.get(0))
+            .and_then(|value| value.get("kill_date"))
+            .and_then(|value| value.as_str())
+            .expect("planted later accepted seal remaining life must remain on disk");
+        let parsed_planted = DateTime::parse_from_rfc3339(on_disk_planted)
+            .expect("planted accepted seal kill_date is RFC3339")
+            .with_timezone(&Utc);
+        assert_eq!(
+            parsed_planted, planted_kill,
+            "load_issuer must not write the file back"
+        );
+        assert!(
+            first.now() < instance.expires,
+            "the instance must still be unexpired so remaining life close is the refuse"
+        );
+        let error = second
+            .verify_presentation(&honest)
+            .expect_err("store B must refuse present after signed seal accept even when remaining life is planted later");
+        let text = error.to_string();
+        assert!(
+            text.contains("seal accept") || text.contains("issuer death"),
+            "store B must name seal accept after a planted later remaining life: {error}"
+        );
+        assert!(
+            !text.contains("expired"),
+            "the present must still be unexpired so remaining life is closed: {error}"
+        );
+        let mut postponed = second.store().load_issuer().expect("load store B issuer");
+        postponed.accepted_sealed_issuer_keys[0].kill_date = planted_kill;
+        let refused = second
+            .store()
+            .save_issuer(&postponed)
+            .expect_err("store B must refuse to postpone a signed accepted seal remaining life");
+        assert!(
+            refused.to_string().contains("accepted seal")
+                || refused.to_string().contains("postpone")
+                || refused.to_string().contains("kill_date"),
+            "store B must name the frozen signed accepted seal: {refused}"
+        );
+        assert_ne!(
+            second
+                .store()
+                .load_secret()
+                .expect("load store B issuer secret"),
+            stolen_secret,
+            "issuer.secret must stay on store A and must not be copied to store B"
+        );
+    }
+
+    #[test]
+    fn verify_refuses_a_planted_drop_of_accepted_sealed_issuer_keys() {
+        let (first_directory, first) = laboratory_kernel();
+        let start = Utc::now();
+        first.set_now_for_test(start);
+        let (instance, capability) = laboratory_capability(&first);
+        let honest = laboratory_signed_presentation(&first, &instance, &capability);
+        let stolen_secret = first
+            .store()
+            .load_secret()
+            .expect("load store A issuer secret");
+        let issuer_public_key = first_issuer_public_key(&first);
+        first.seal_issuer(60).expect("store A seal must succeed");
+        let seal_directory = first_directory.path().join("seal-bundle");
+        first
+            .export_seal_bundle(&seal_directory)
+            .expect("store A must export the public seal artifacts");
+        let (_second_directory, second) = laboratory_kernel();
+        second.set_now_for_test(start);
+        second
+            .accept_issuer_public_key(&issuer_public_key)
+            .expect("store B pins store A current key");
+        second
+            .verify_presentation(&honest)
+            .expect("the honest present must verify on store B before seal accept");
+        second
+            .accept_seal_bundle(&seal_directory)
+            .expect("store B must accept the seal bundle");
+        let log = second
+            .store()
+            .read_log()
+            .expect("read store B issuance log");
+        assert!(
+            log.iter().any(|event| event.operation == "seal_accept"),
+            "store B must append a signed seal_accept line"
+        );
+        let accepted = second.store().load_issuer().expect("load store B issuer");
+        let honest_kill = accepted.accepted_sealed_issuer_keys[0].kill_date;
+        let issuer_path = second.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read store B issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse store B issuer.json");
+        planted["accepted_sealed_issuer_keys"] = serde_json::Value::Array(Vec::new());
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant an empty accepted_sealed_issuer_keys list without save_issuer");
+        let loaded = second
+            .store()
+            .load_issuer()
+            .expect("load store B after the plant");
+        let restored = loaded
+            .accepted_sealed_issuer_keys
+            .iter()
+            .find(|previous| previous.public_key_hex.trim() == issuer_public_key.trim())
+            .expect("load_issuer must restore the signed accepted seal");
+        assert_eq!(
+            restored.kill_date, honest_kill,
+            "load_issuer must restore the signed accepted seal kill_date"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read store B issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk_after = still_planted
+            .get("accepted_sealed_issuer_keys")
+            .and_then(|value| value.as_array())
+            .expect("planted accepted_sealed_issuer_keys must remain on disk");
+        assert!(
+            on_disk_after.is_empty(),
+            "load_issuer must not write the file back"
+        );
+        assert!(
+            first.now() < instance.expires,
+            "the instance must still be unexpired so remaining life close is the refuse"
+        );
+        let error = second.verify_presentation(&honest).expect_err(
+            "store B must refuse present of a still-unexpired instance after signed seal accept even after a planted drop",
+        );
+        let text = error.to_string();
+        assert!(
+            text.contains("seal accept") || text.contains("issuer death"),
+            "store B must name seal accept after a planted drop: {error}"
+        );
+        assert!(
+            !text.contains("expired"),
+            "the present must still be unexpired so remaining life is closed: {error}"
+        );
+        let mut dropped = second.store().load_issuer().expect("load store B issuer");
+        dropped.accepted_sealed_issuer_keys.clear();
+        let removed = second
+            .store()
+            .save_issuer(&dropped)
+            .expect_err("store B must refuse to omit a signed accepted seal");
+        assert!(
+            removed.to_string().contains("accepted seal")
+                || removed.to_string().contains("omitted")
+                || removed.to_string().contains("cleared"),
+            "store B must name the refused signed accepted-seal omit: {removed}"
+        );
+        assert_ne!(
+            second
+                .store()
+                .load_secret()
+                .expect("load store B issuer secret"),
+            stolen_secret,
+            "issuer.secret must stay on store A and must not be copied to store B"
         );
     }
 
