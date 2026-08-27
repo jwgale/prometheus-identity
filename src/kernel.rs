@@ -2635,12 +2635,9 @@ impl Kernel {
 
     fn require_capability_not_revoked(&self, capability: &Capability) -> Result<()> {
         let events = self.store.read_log()?;
-        if events.iter().any(|event| {
-            event.operation == "kill_capability"
-                && event.capability_id.as_deref() == Some(capability.id.as_str())
-        }) {
+        if Self::local_kill_log_hits_capability(&events, &capability.id) {
             return Err(Error::kernel(
-                "The parent capability was revoked. Attenuation is not permitted.",
+                "The capability was revoked. A signed kill line already records this capability. Spawn and attenuation are refused.",
             ));
         }
         Ok(())
@@ -10670,6 +10667,107 @@ mod tests {
         assert_eq!(
             challenge_lines_after, challenge_lines_before,
             "a refused holder challenge must not append a challenge issuance.log line"
+        );
+    }
+
+    #[test]
+    fn spawn_child_refuses_after_signed_parent_capability_kill() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (parent, capability) = laboratory_capability(&kernel);
+        let parent_nonce = fresh_challenge(&kernel, &parent);
+        let child = kernel
+            .spawn_child(
+                &parent.id,
+                &capability.id,
+                "child".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments/prod",
+                None,
+                Some(&holder_proof(&kernel, &parent)),
+                Some(&parent_nonce),
+            )
+            .expect("a narrower child must succeed");
+        let child_nonce = fresh_challenge(&kernel, &child.instance);
+        kernel
+            .kill_capability(&capability.id)
+            .expect("kill the parent capability");
+        let instance_count_before = kernel
+            .store()
+            .list_instances()
+            .expect("list instances before the refused spawn")
+            .len();
+        let error = kernel
+            .spawn_child(
+                &child.instance.id,
+                &child.capability.id,
+                "grandchild".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments/prod",
+                None,
+                Some(&holder_proof(&kernel, &child.instance)),
+                Some(&child_nonce),
+            )
+            .expect_err("spawn from a child named on the signed kill line must be refused");
+        let error_text = error.to_string();
+        assert!(
+            error_text.contains("revoked") || error_text.contains("kill"),
+            "the refuse must name revoked or kill: {error}"
+        );
+        let instance_count_after = kernel
+            .store()
+            .list_instances()
+            .expect("list instances after the refused spawn")
+            .len();
+        assert_eq!(
+            instance_count_after, instance_count_before,
+            "a refused spawn must not write a grandchild instance"
+        );
+    }
+
+    #[test]
+    fn attenuate_capability_refuses_after_signed_parent_capability_kill() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (parent, capability) = laboratory_capability(&kernel);
+        let parent_nonce = fresh_challenge(&kernel, &parent);
+        let child = kernel
+            .spawn_child(
+                &parent.id,
+                &capability.id,
+                "child".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments/prod",
+                None,
+                Some(&holder_proof(&kernel, &parent)),
+                Some(&parent_nonce),
+            )
+            .expect("a narrower child must succeed");
+        kernel
+            .kill_capability(&capability.id)
+            .expect("kill the parent capability");
+        let capability_count_before = kernel
+            .store()
+            .list_capabilities()
+            .expect("list capabilities before the refused attenuate")
+            .len();
+        let error = kernel
+            .attenuate_capability(&child.capability.id, "payments/prod/closed", None)
+            .expect_err("attenuate of a child named on the signed kill line must be refused");
+        let error_text = error.to_string();
+        assert!(
+            error_text.contains("revoked") || error_text.contains("kill"),
+            "the refuse must name revoked or kill: {error}"
+        );
+        let capability_count_after = kernel
+            .store()
+            .list_capabilities()
+            .expect("list capabilities after the refused attenuate")
+            .len();
+        assert_eq!(
+            capability_count_after, capability_count_before,
+            "a refused attenuate must not write a new capability"
         );
     }
 
