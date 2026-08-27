@@ -10555,6 +10555,125 @@ mod tests {
     }
 
     #[test]
+    fn load_instance_overlays_planted_live_after_signed_kill() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (instance, _capability) = laboratory_capability(&kernel);
+        kernel
+            .kill_instance(&instance.id)
+            .expect("kill the local instance");
+        let instance_path = kernel
+            .store()
+            .root()
+            .join("instances")
+            .join(format!("{}.json", instance.id));
+        let raw = std::fs::read_to_string(&instance_path).expect("read instance.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse instance.json");
+        planted["status"] = serde_json::Value::String("live".to_string());
+        std::fs::write(
+            &instance_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted instance.json"),
+        )
+        .expect("plant live status without save_instance");
+        let loaded = kernel
+            .store()
+            .load_instance(&instance.id)
+            .expect("load after the planted live status");
+        assert_eq!(
+            loaded.status,
+            InstanceStatus::Revoked,
+            "load_instance must overlay planted live from the signed kill_instance line"
+        );
+        let listed = kernel
+            .store()
+            .list_instances()
+            .expect("list after the planted live status");
+        let listed = listed
+            .iter()
+            .find(|row| row.id == instance.id)
+            .expect("the planted instance must still list");
+        assert_eq!(
+            listed.status,
+            InstanceStatus::Revoked,
+            "list_instances must overlay planted live from the signed kill_instance line"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&instance_path).expect("re-read instance.json"),
+        )
+        .expect("parse planted instance.json");
+        assert_eq!(
+            still_planted.get("status").and_then(|value| value.as_str()),
+            Some("live"),
+            "load_instance must not write the file back"
+        );
+    }
+
+    #[test]
+    fn issue_holder_challenge_refuses_planted_live_after_signed_kill() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (instance, _capability) = laboratory_capability(&kernel);
+        let secret_path = kernel.store().holder_secret_path(&instance.id);
+        kernel
+            .kill_instance(&instance.id)
+            .expect("kill the local instance");
+        let instance_path = kernel
+            .store()
+            .root()
+            .join("instances")
+            .join(format!("{}.json", instance.id));
+        let raw = std::fs::read_to_string(&instance_path).expect("read instance.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse instance.json");
+        planted["status"] = serde_json::Value::String("live".to_string());
+        std::fs::write(
+            &instance_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted instance.json"),
+        )
+        .expect("plant live status without save_instance");
+        let log_before = kernel
+            .store()
+            .read_log()
+            .expect("read the issuance log before the refused challenge");
+        let challenge_lines_before = log_before
+            .iter()
+            .filter(|event| event.operation == "challenge")
+            .count();
+        let error = kernel
+            .issue_holder_challenge(&instance.id)
+            .expect_err("a holder challenge after planted live must be refused");
+        let error_text = error.to_string();
+        assert!(
+            error_text.contains("revoked")
+                || error_text.contains("kill")
+                || error_text.contains("death")
+                || error_text.contains("live"),
+            "the refuse must name revoked, kill, death, or live: {error}"
+        );
+        let challenge = kernel
+            .issue_verifier_challenge()
+            .expect("issue a verifier challenge");
+        let sign_error = kernel
+            .sign_holder_nonce(&challenge.challenge_message, &secret_path)
+            .expect_err("signing after planted live must be refused");
+        assert!(
+            sign_error.to_string().contains("revoked"),
+            "the refuse must name the revoked instance: {sign_error}"
+        );
+        let log_after = kernel
+            .store()
+            .read_log()
+            .expect("read the issuance log after the refused challenge");
+        let challenge_lines_after = log_after
+            .iter()
+            .filter(|event| event.operation == "challenge")
+            .count();
+        assert_eq!(
+            challenge_lines_after, challenge_lines_before,
+            "a refused holder challenge must not append a challenge issuance.log line"
+        );
+    }
+
+    #[test]
     fn issue_holder_challenge_after_issuer_seal_is_refused() {
         let (_directory, kernel) = laboratory_kernel();
         let (instance, _capability) = laboratory_capability(&kernel);

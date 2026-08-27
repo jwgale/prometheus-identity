@@ -1440,6 +1440,9 @@ impl Store {
         }))
     }
 
+    /// Load instance.json. If a signed kill_instance issuance.log line already
+    /// records this instance, set the in-memory status to revoked. Do not write
+    /// the file. A planted live status is not live.
     pub fn load_instance(&self, identifier: &str) -> Result<Instance> {
         let path = self
             .root
@@ -1450,7 +1453,46 @@ impl Store {
                 "The instance does not exist: {identifier}"
             )));
         }
-        self.read_json(&path)
+        let mut instance: Instance = self.read_json(&path)?;
+        self.overlay_instance_status_from_signed_kill(&mut instance)?;
+        Ok(instance)
+    }
+
+    /// If a signed kill_instance issuance.log line already records this
+    /// instance, set in-memory status to revoked. Do not write the file.
+    /// A planted live status is not live. Parent-cascade identifiers live on
+    /// killed_instance_ids.
+    fn overlay_instance_status_from_signed_kill(&self, instance: &mut Instance) -> Result<()> {
+        if self.signed_kill_hits_instance(&instance.id)? {
+            instance.status = InstanceStatus::Revoked;
+        }
+        Ok(())
+    }
+
+    /// True when issuance.log has a kill_instance line for this identifier.
+    /// Matches event.instance_id or killed_instance_ids. Walks read_log only.
+    /// This function must not call load_issuer.
+    fn signed_kill_hits_instance(&self, instance_id: &str) -> Result<bool> {
+        let trimmed = instance_id.trim();
+        if trimmed.is_empty() {
+            return Ok(false);
+        }
+        for event in self.read_log()? {
+            if event.operation != "kill_instance" {
+                continue;
+            }
+            if event.instance_id.as_deref() == Some(trimmed) {
+                return Ok(true);
+            }
+            if event
+                .killed_instance_ids
+                .iter()
+                .any(|identifier| identifier.trim() == trimmed)
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     pub fn holder_secret_path(&self, instance_id: &str) -> PathBuf {
@@ -1572,7 +1614,11 @@ impl Store {
     }
 
     pub fn list_instances(&self) -> Result<Vec<Instance>> {
-        self.list_json_records("instances")
+        let mut records: Vec<Instance> = self.list_json_records("instances")?;
+        for instance in &mut records {
+            self.overlay_instance_status_from_signed_kill(instance)?;
+        }
+        Ok(records)
     }
 
     pub fn list_agent_types(&self) -> Result<Vec<AgentType>> {
