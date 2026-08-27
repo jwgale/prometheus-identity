@@ -15591,4 +15591,148 @@ mod tests {
             .expect("a store that pinned the original public key must allow the restored present");
         let _keep_custody = custody_directory;
     }
+
+    #[test]
+    fn cold_restore_at_threshold_three_needs_all_outside_members() {
+        let (_source_directory, kernel) = laboratory_kernel();
+        let (two_custody, two) = add_outside_member_two(&kernel);
+        let (three_custody, three) = add_outside_member_three(&kernel);
+        assert_ne!(
+            two.parent().expect("member-two parent"),
+            three.parent().expect("member-three parent"),
+            "member three must not use the member-two custody path"
+        );
+        kernel
+            .set_issuer_threshold(3)
+            .expect("set n=3 with three members in hand");
+        let agent_type = laboratory_agent_type(&kernel, "payments", 2);
+        let birth = kernel
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect("birth_write on the source issuer at n=3");
+        let source_nonce = fresh_challenge(&kernel, &birth.instance);
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        kernel
+            .export_issuer_backup(&backup)
+            .expect("export a laboratory backup outside the data directory");
+        let stray_backup: Vec<_> = std::fs::read_dir(&backup)
+            .expect("read the backup")
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                let name = entry.file_name().to_string_lossy().to_string();
+                name.starts_with("issuer-member-")
+                    || name == "member-two.secret"
+                    || name == "member-three.secret"
+            })
+            .collect();
+        assert!(
+            stray_backup.is_empty(),
+            "the backup must not include member two or member three secrets"
+        );
+        let dest_directory = tempdir().expect("create a restore destination");
+        let dest_root = dest_directory.path().join("restored");
+        let restored = Kernel::restore_from_backup(&backup, &dest_root)
+            .expect("restore onto an empty issuing store");
+        let diagnostics = restored
+            .restore_diagnostics(&backup)
+            .expect("restore diagnostics after honest restore at n=3");
+        assert!(
+            diagnostics.restore_succeeded && diagnostics.operation_normal,
+            "honest restore at n=3 must report restore_succeeded and operation_normal"
+        );
+        let source_key = first_issuer_public_key(&kernel);
+        assert_eq!(
+            first_issuer_public_key(&restored),
+            source_key,
+            "the restored issuer public key must equal the source issuer public key"
+        );
+        assert!(
+            diagnostics.member_two_absent_from_store,
+            "dest must not hold issuer-member secrets after n=3 restore"
+        );
+        let issuer = restored
+            .store()
+            .load_issuer()
+            .expect("load restored issuer at n=3");
+        assert_eq!(issuer.threshold_n.max(1), 3, "restored threshold_n must stay 3");
+        assert!(
+            issuer.signing_member_count() >= 3,
+            "restored issuer must still list three member public keys"
+        );
+        let birth_error = restored
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect_err("birth must refuse on the restored n=3 store without outside members");
+        let birth_text = birth_error.to_string();
+        assert!(
+            birth_text.contains("only")
+                && (birth_text.contains("secret") || birth_text.contains("member")),
+            "unexpected missing-custody birth error: {birth_error}"
+        );
+        restored
+            .store()
+            .register_extra_member_secret_path(two.clone())
+            .expect("register member-two after restore");
+        let one_member_error = restored
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect_err("birth must refuse on the restored n=3 store with only one outside member");
+        let one_text = one_member_error.to_string();
+        assert!(
+            one_text.contains("only")
+                && (one_text.contains("secret") || one_text.contains("member")),
+            "unexpected one-outside-member birth error: {one_member_error}"
+        );
+        restored
+            .store()
+            .register_extra_member_secret_path(three.clone())
+            .expect("register member-three after restore");
+        restored
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect("birth must succeed after both outside member paths are registered");
+        restored
+            .mint_capability(&birth.instance.id, "read", "payments", None)
+            .expect("mint must succeed after both outside member paths are registered");
+        let restored_present =
+            laboratory_signed_presentation(&restored, &birth.instance, &birth.capability);
+        restored
+            .verify_presentation(&restored_present)
+            .expect("an honest present from the restored live instance must verify at n=3");
+        let (_verifier_directory, verifier) = laboratory_kernel();
+        verifier
+            .accept_issuer_public_key(&source_key)
+            .expect("store C pins the original issuer public key");
+        verifier
+            .verify_presentation(&restored_present)
+            .expect("a store that pinned the original public key must allow the restored present");
+        let _keep_two = two_custody;
+        let _keep_three = three_custody;
+        let _keep_nonce = source_nonce;
+    }
 }

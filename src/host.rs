@@ -6166,6 +6166,198 @@ mod tests {
     }
 
     #[test]
+    fn cold_restore_at_threshold_three_host_birth_needs_both_outside_members() {
+        use crate::kernel::Kernel;
+        use tempfile::tempdir;
+
+        let source_directory = tempdir().expect("create a source directory");
+        let source = Kernel::open(source_directory.path());
+        source.initialize().expect("initialize the source issuer");
+        let two_directory = tempdir().expect("create a member-two custody directory");
+        let three_directory = tempdir().expect("create a member-three custody directory");
+        let two = two_directory.path().join("member-two.secret");
+        let three = three_directory.path().join("member-three.secret");
+        let two_body = serde_json::json!({
+            "member_secret_path": two.to_string_lossy(),
+        })
+        .to_string();
+        let two_response =
+            exchange_one_http_request(&source, &http_post_request("/member-two", &two_body));
+        assert!(
+            two_response.starts_with("HTTP/1.1 200"),
+            "POST /member-two must register member two: {two_response}"
+        );
+        let three_body = serde_json::json!({
+            "member_secret_path": three.to_string_lossy(),
+        })
+        .to_string();
+        let three_response =
+            exchange_one_http_request(&source, &http_post_request("/member-two", &three_body));
+        assert!(
+            three_response.starts_with("HTTP/1.1 200"),
+            "POST /member-two must register member three: {three_response}"
+        );
+        let threshold_body = serde_json::json!({
+            "confirm": "issuer-threshold",
+            "n": 3,
+        })
+        .to_string();
+        let threshold_response = exchange_one_http_request(
+            &source,
+            &http_post_request("/set-issuer-threshold", &threshold_body),
+        );
+        assert!(
+            threshold_response.starts_with("HTTP/1.1 200"),
+            "POST /set-issuer-threshold must set n=3: {threshold_response}"
+        );
+        let agent_type = laboratory_agent_type(&source);
+
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        let backup_body = serde_json::json!({
+            "path": backup.display().to_string(),
+            "confirm": "backup",
+        })
+        .to_string();
+        let backup_response =
+            exchange_one_http_request(&source, &http_post_request("/backup", &backup_body));
+        assert!(
+            backup_response.starts_with("HTTP/1.1 200"),
+            "POST /backup must succeed on the live issuing host at n=3: {backup_response}"
+        );
+        let stray_backup: Vec<_> = std::fs::read_dir(&backup)
+            .expect("read the backup")
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                let name = entry.file_name().to_string_lossy().to_string();
+                name.starts_with("issuer-member-")
+                    || name == "member-two.secret"
+                    || name == "member-three.secret"
+            })
+            .collect();
+        assert!(
+            stray_backup.is_empty(),
+            "POST /backup at n=3 must not copy member two or member three secrets"
+        );
+
+        let dest_directory = tempdir().expect("create an empty restore destination");
+        let dest = Kernel::open(dest_directory.path());
+        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback())
+            .expect("an issuing host with empty data must start so POST /restore can write");
+        let restore_body = serde_json::json!({
+            "from": backup.display().to_string(),
+            "confirm": "restore",
+        })
+        .to_string();
+        let restore_response =
+            exchange_one_http_request(&dest, &http_post_request("/restore", &restore_body));
+        assert!(
+            restore_response.starts_with("HTTP/1.1 200"),
+            "POST /restore onto empty data must succeed at n=3: {restore_response}"
+        );
+        let restore_payload = http_body(&restore_response);
+        let restore_value: serde_json::Value = serde_json::from_str(restore_payload)
+            .expect("POST /restore must return RestoreDiagnostics JSON");
+        assert_eq!(
+            restore_value["operation_normal"].as_bool(),
+            Some(true),
+            "POST /restore at n=3 must report operation_normal: {restore_payload}"
+        );
+        assert_eq!(
+            restore_value["restore_succeeded"].as_bool(),
+            Some(true),
+            "POST /restore at n=3 must report restore_succeeded: {restore_payload}"
+        );
+        assert_eq!(
+            restore_value["member_two_absent_from_store"].as_bool(),
+            Some(true),
+            "POST /restore at n=3 must report member secrets absent: {restore_payload}"
+        );
+        assert_body_has_no_secrets(
+            &dest,
+            restore_payload,
+            None,
+            "POST /restore at n=3 secrets lock",
+        );
+
+        let birth_without = serde_json::json!({
+            "agent_type_id": agent_type.id,
+            "owner": "laboratory",
+            "intent": "read",
+            "audience": "internal",
+            "on_behalf_of": "autonomous",
+        })
+        .to_string();
+        assert_live_host_write_refuses_without_member_secret_path(
+            &dest,
+            "/birth",
+            &birth_without,
+            "POST /birth on restored dest at n=3 without an outside member",
+        );
+
+        let birth_one = serde_json::json!({
+            "agent_type_id": agent_type.id,
+            "owner": "laboratory",
+            "intent": "read",
+            "audience": "internal",
+            "on_behalf_of": "autonomous",
+            "member_secret_path": two.to_string_lossy(),
+        })
+        .to_string();
+        let one_response =
+            exchange_one_http_request(&dest, &http_post_request("/birth", &birth_one));
+        assert!(
+            one_response.contains("HTTP/1.1 403"),
+            "POST /birth on restored dest at n=3 with only member two must refuse: {one_response}"
+        );
+        let one_payload = http_body(&one_response);
+        assert!(
+            one_payload.contains("only")
+                && (one_payload.contains("secret") || one_payload.contains("member")),
+            "POST /birth with only one outside member must name the missing-secret refuse: {one_payload}"
+        );
+        assert!(
+            dest
+                .store()
+                .list_instances()
+                .expect("list instances after one-member refuse")
+                .is_empty(),
+            "a refused n=3 dest birth with one outside member must not persist an instance"
+        );
+
+        let birth_two = serde_json::json!({
+            "agent_type_id": agent_type.id,
+            "owner": "laboratory",
+            "intent": "read",
+            "audience": "internal",
+            "on_behalf_of": "autonomous",
+            "member_secret_path": three.to_string_lossy(),
+        })
+        .to_string();
+        let birth_response =
+            exchange_one_http_request(&dest, &http_post_request("/birth", &birth_two));
+        assert!(
+            birth_response.starts_with("HTTP/1.1 200"),
+            "POST /birth on restored dest at n=3 after both outside members are registered must return 200: {birth_response}"
+        );
+        let birth_payload = http_body(&birth_response);
+        let birth_value: serde_json::Value =
+            serde_json::from_str(birth_payload).expect("POST /birth must return JSON");
+        let instance_id = birth_value["instance_id"]
+            .as_str()
+            .expect("POST /birth must return instance_id")
+            .to_string();
+        assert_body_has_no_secrets(
+            &dest,
+            birth_payload,
+            Some(&instance_id),
+            "POST /birth on restored dest at n=3 with both outside members",
+        );
+        let _keep_two = two_directory;
+        let _keep_three = three_directory;
+    }
+
+    #[test]
     fn check_only_host_refuses_backup_and_restore() {
         let (_directory, kernel) = laboratory_verifier_kernel();
         let mode = super::HostMode::check_only_loopback();
