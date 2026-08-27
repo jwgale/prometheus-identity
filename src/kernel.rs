@@ -1288,6 +1288,11 @@ impl Kernel {
                 "The instance was revoked. A challenge is refused. The check fails closed.",
             ));
         }
+        if self.instance_capabilities_all_named_on_signed_kill(&instance.id)? {
+            return Err(Error::denied(
+                "A signed kill line already records every capability of this instance. A challenge is refused. The check fails closed.",
+            ));
+        }
         let issued = self.now();
         let expires = issued + Duration::seconds(lifetime_seconds as i64);
         let nonce = new_identifier();
@@ -1404,6 +1409,11 @@ impl Kernel {
         if instance.status == InstanceStatus::Revoked {
             return Err(Error::denied(
                 "This store's own records say this instance is revoked. Signing a verifier nonce after local kill is refused. Death wins. The check fails closed.",
+            ));
+        }
+        if self.instance_capabilities_all_named_on_signed_kill(&instance.id)? {
+            return Err(Error::denied(
+                "A signed kill line already records every capability of this instance. Signing a verifier nonce after capability death is refused. Death wins. The check fails closed.",
             ));
         }
         let secret = std::fs::read_to_string(requested).map_err(|_| {
@@ -2641,6 +2651,25 @@ impl Kernel {
             ));
         }
         Ok(())
+    }
+
+    /// True when this instance has at least one capability and a signed
+    /// kill_capability or kill_instance line already records every one.
+    /// Parent-cascade identifiers live on killed_capability_ids.
+    fn instance_capabilities_all_named_on_signed_kill(&self, instance_id: &str) -> Result<bool> {
+        let events = self.store.read_log()?;
+        let mine: Vec<_> = self
+            .store
+            .list_capabilities()?
+            .into_iter()
+            .filter(|capability| capability.instance_id == instance_id)
+            .collect();
+        if mine.is_empty() {
+            return Ok(false);
+        }
+        Ok(mine.iter().all(|capability| {
+            Self::local_kill_log_hits_capability(&events, &capability.id)
+        }))
     }
 
     fn chain_has_revoke_from_here(&self, capability_id: &str) -> Result<bool> {
@@ -10772,6 +10801,97 @@ mod tests {
     }
 
     #[test]
+    fn issue_holder_challenge_refuses_after_signed_parent_capability_kill() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (parent, capability) = laboratory_capability(&kernel);
+        let parent_nonce = fresh_challenge(&kernel, &parent);
+        let child = kernel
+            .spawn_child(
+                &parent.id,
+                &capability.id,
+                "child".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments/prod",
+                None,
+                Some(&holder_proof(&kernel, &parent)),
+                Some(&parent_nonce),
+            )
+            .expect("a narrower child must succeed");
+        kernel
+            .kill_capability(&capability.id)
+            .expect("kill the parent capability");
+        let log_before = kernel
+            .store()
+            .read_log()
+            .expect("read the issuance log before the refused challenge");
+        let challenge_lines_before = log_before
+            .iter()
+            .filter(|event| event.operation == "challenge")
+            .count();
+        let error = kernel
+            .issue_holder_challenge(&child.instance.id)
+            .expect_err("a holder challenge after parent capability kill must be refused");
+        let error_text = error.to_string();
+        assert!(
+            error_text.contains("revoked")
+                || error_text.contains("kill")
+                || error_text.contains("death")
+                || error_text.contains("live"),
+            "the refuse must name revoked, kill, death, or live: {error}"
+        );
+        let log_after = kernel
+            .store()
+            .read_log()
+            .expect("read the issuance log after the refused challenge");
+        let challenge_lines_after = log_after
+            .iter()
+            .filter(|event| event.operation == "challenge")
+            .count();
+        assert_eq!(
+            challenge_lines_after, challenge_lines_before,
+            "a refused holder challenge must not append a challenge issuance.log line"
+        );
+    }
+
+    #[test]
+    fn sign_holder_nonce_refuses_after_signed_parent_capability_kill() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (parent, capability) = laboratory_capability(&kernel);
+        let parent_nonce = fresh_challenge(&kernel, &parent);
+        let child = kernel
+            .spawn_child(
+                &parent.id,
+                &capability.id,
+                "child".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments/prod",
+                None,
+                Some(&holder_proof(&kernel, &parent)),
+                Some(&parent_nonce),
+            )
+            .expect("a narrower child must succeed");
+        let secret_path = kernel.store().holder_secret_path(&child.instance.id);
+        kernel
+            .kill_capability(&capability.id)
+            .expect("kill the parent capability");
+        let challenge = kernel
+            .issue_verifier_challenge()
+            .expect("issue a verifier challenge");
+        let error = kernel
+            .sign_holder_nonce(&challenge.challenge_message, &secret_path)
+            .expect_err("signing after parent capability kill must be refused");
+        let error_text = error.to_string();
+        assert!(
+            error_text.contains("kill")
+                || error_text.contains("death")
+                || error_text.contains("revoked"),
+            "the refuse must name kill, death, or revoked: {error}"
+        );
+    }
+
+    #[test]
     fn issue_holder_challenge_after_issuer_seal_is_refused() {
         let (_directory, kernel) = laboratory_kernel();
         let (instance, _capability) = laboratory_capability(&kernel);
@@ -11997,6 +12117,7 @@ mod tests {
         let child = kernel
             .attenuate_capability(&parent.id, "payments/prod", None)
             .expect("attenuation must create a child hop");
+        let nonce = fresh_challenge(&kernel, &instance);
         kernel
             .kill_capability(&parent.id)
             .expect("parent capability kill must succeed");
@@ -12022,7 +12143,7 @@ mod tests {
                 "payments/prod",
                 "read",
                 Some(&holder_proof(&kernel, &instance)),
-                Some(&fresh_challenge(&kernel, &instance)),
+                Some(&nonce),
                 Some("autonomous"),
             )
             .expect_err("the child must still refuse after a refused revoke-from-here clear");
@@ -13718,6 +13839,8 @@ mod tests {
         let child = kernel
             .attenuate_capability(&parent.id, "payments/prod", None)
             .expect("attenuation must create a child hop");
+        let verify_nonce = fresh_challenge(&kernel, &instance);
+        let check_nonce = fresh_challenge(&kernel, &instance);
         kernel
             .kill_capability(&parent.id)
             .expect("parent capability kill must succeed");
@@ -13736,7 +13859,7 @@ mod tests {
                 "payments/prod",
                 "read",
                 Some(&holder_proof(&kernel, &instance)),
-                Some(&fresh_challenge(&kernel, &instance)),
+                Some(&verify_nonce),
                 Some("autonomous"),
             )
             .expect_err("a planted cleared revoke-from-here must not revive the child");
@@ -13748,7 +13871,7 @@ mod tests {
                 "read",
                 "payments/prod",
                 Some(&holder_proof(&kernel, &instance)),
-                Some(&fresh_challenge(&kernel, &instance)),
+                Some(&check_nonce),
                 Some("autonomous"),
             )
             .expect("check returns a decision");
@@ -13905,6 +14028,7 @@ mod tests {
         let child = kernel
             .attenuate_capability(&parent.id, "payments/prod", None)
             .expect("attenuation must create a child hop");
+        let nonce = fresh_challenge(&kernel, &instance);
         kernel
             .kill_capability(&parent.id)
             .expect("parent capability kill must succeed");
@@ -13935,7 +14059,7 @@ mod tests {
                 "payments/prod",
                 "read",
                 Some(&holder_proof(&kernel, &instance)),
-                Some(&fresh_challenge(&kernel, &instance)),
+                Some(&nonce),
                 Some("autonomous"),
             )
             .expect_err(
