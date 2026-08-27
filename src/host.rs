@@ -5456,6 +5456,266 @@ mod tests {
     }
 
     #[test]
+    fn cold_restore_wimse_verifies_on_a_host_that_pinned_the_original_issuer() {
+        use crate::kernel::Kernel;
+        use tempfile::tempdir;
+
+        let source_directory = tempdir().expect("create a source directory");
+        let source = Kernel::open(source_directory.path());
+        source.initialize().expect("initialize the source issuer");
+        let birth = laboratory_host_birth(&source);
+        let _source_wimse = laboratory_wimse_artifact(&source, &birth);
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        let backup_body = serde_json::json!({
+            "path": backup.display().to_string(),
+            "confirm": "backup",
+        })
+        .to_string();
+        let backup_response =
+            exchange_one_http_request(&source, &http_post_request("/backup", &backup_body));
+        assert!(
+            backup_response.starts_with("HTTP/1.1 200"),
+            "POST /backup must succeed on the live issuing host: {backup_response}"
+        );
+
+        let dest_directory = tempdir().expect("create an empty restore destination");
+        let dest = Kernel::open(dest_directory.path());
+        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback()).expect(
+            "an issuing host with empty data must start so POST /restore can write",
+        );
+        let restore_body = serde_json::json!({
+            "from": backup.display().to_string(),
+            "confirm": "restore",
+        })
+        .to_string();
+        let restore_response =
+            exchange_one_http_request(&dest, &http_post_request("/restore", &restore_body));
+        assert!(
+            restore_response.starts_with("HTTP/1.1 200"),
+            "POST /restore onto empty data must succeed: {restore_response}"
+        );
+        let restore_payload = http_body(&restore_response);
+        let restore_value: serde_json::Value = serde_json::from_str(restore_payload)
+            .expect("POST /restore must return RestoreDiagnostics JSON");
+        assert_eq!(
+            restore_value["operation_normal"].as_bool(),
+            Some(true),
+            "POST /restore must report operation_normal: {restore_payload}"
+        );
+
+        let source_public = exchange_one_http_request(
+            &source,
+            "GET /issuer-public HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+        );
+        let dest_public = exchange_one_http_request(
+            &dest,
+            "GET /issuer-public HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+        );
+        assert!(
+            source_public.starts_with("HTTP/1.1 200") && dest_public.starts_with("HTTP/1.1 200"),
+            "GET /issuer-public must succeed on source and restored hosts"
+        );
+        let source_key = serde_json::from_str::<serde_json::Value>(http_body(&source_public))
+            .expect("source issuer-public JSON")["current_issuer_public_key_hex"]
+            .as_str()
+            .expect("source current key")
+            .to_string();
+        let dest_key = serde_json::from_str::<serde_json::Value>(http_body(&dest_public))
+            .expect("dest issuer-public JSON")["current_issuer_public_key_hex"]
+            .as_str()
+            .expect("dest current key")
+            .to_string();
+        assert_eq!(
+            dest_key, source_key,
+            "the restored host current issuer public key must equal the source"
+        );
+
+        let holder_path = dest
+            .store()
+            .holder_secret_path(&birth.instance.id)
+            .display()
+            .to_string();
+        assert!(
+            dest.store().holder_secret_path(&birth.instance.id).exists(),
+            "the holder secret must restore from holders/"
+        );
+        let (
+            presentation_json,
+            workload_identity_token,
+            content_digest,
+            signature_input,
+            signature,
+        ) = laboratory_host_present_wimse_http(
+            &dest,
+            &birth.instance.id,
+            &birth.capability.id,
+            &holder_path,
+            "internal",
+        );
+
+        let (directory_c, store_c) = laboratory_verifier_kernel();
+        std::fs::remove_file(store_c.store().secret_path()).expect(
+            "remove Store C issuer.secret so check-only does not require a live mint issuer",
+        );
+        let mode = super::HostMode::check_only_loopback();
+        super::prepare_host_store(&store_c, &mode).expect(
+            "a check-only host must start on a Store C verifier store without issuer.secret",
+        );
+        let pin_body = serde_json::json!({
+            "public_key_hex": source_key,
+        })
+        .to_string();
+        let pin_response = exchange_one_http_request_with_mode(
+            &store_c,
+            &http_post_request("/issuer-accept", &pin_body),
+            &mode,
+        );
+        assert!(
+            pin_response.starts_with("HTTP/1.1 200"),
+            "check-only POST /issuer-accept must pin the original public key: {pin_response}"
+        );
+
+        let challenge_response = exchange_one_http_request_with_mode(
+            &store_c,
+            &http_post_request("/verifier-challenge", "{}"),
+            &mode,
+        );
+        assert!(
+            challenge_response.starts_with("HTTP/1.1 200"),
+            "check-only POST /verifier-challenge must return a nonce: {challenge_response}"
+        );
+        let challenge_value: serde_json::Value =
+            serde_json::from_str(http_body(&challenge_response))
+                .expect("POST /verifier-challenge must return JSON");
+        let nonce = challenge_value["challenge_nonce"]
+            .as_str()
+            .expect("challenge_nonce")
+            .to_string();
+        let message = challenge_value["challenge_message"]
+            .as_str()
+            .expect("challenge_message")
+            .to_string();
+        let sign_body = serde_json::json!({
+            "challenge_message": message,
+            "holder_secret_path": holder_path,
+        })
+        .to_string();
+        let sign_response =
+            exchange_one_http_request(&dest, &http_post_request("/sign-holder-nonce", &sign_body));
+        assert!(
+            sign_response.starts_with("HTTP/1.1 200"),
+            "the restored host must sign the verifier nonce: {sign_response}"
+        );
+        let holder_proof = serde_json::from_str::<serde_json::Value>(http_body(&sign_response))
+            .expect("sign JSON")["holder_proof"]
+            .as_str()
+            .expect("holder_proof")
+            .to_string();
+        let check_body = serde_json::json!({
+            "presentation_json": presentation_json,
+            "workload_identity_token": workload_identity_token,
+            "content_digest": content_digest,
+            "intent": "read",
+            "audience": "internal",
+            "holder_proof": holder_proof,
+            "challenge_nonce": nonce,
+            "on_behalf_of": "autonomous",
+            "signature_input": signature_input,
+            "signature": signature,
+        })
+        .to_string();
+        let check_response = exchange_one_http_request_with_mode(
+            &store_c,
+            &http_post_request_with_signature(
+                "/check-wimse",
+                &check_body,
+                &signature_input,
+                &signature,
+            ),
+            &mode,
+        );
+        assert!(
+            check_response.starts_with("HTTP/1.1 200"),
+            "Store C POST /check-wimse must allow the restored present: {check_response}"
+        );
+        let check_payload = http_body(&check_response);
+        let check_value: serde_json::Value =
+            serde_json::from_str(check_payload).expect("check-wimse JSON");
+        assert_eq!(
+            check_value["result"].as_str(),
+            Some("allowed"),
+            "Store C that pinned the original issuer public key must allow the restored WIMSE present: {check_payload}"
+        );
+
+        let kill_body = serde_json::json!({
+            "instance_id": birth.instance.id,
+            "confirm": birth.instance.id,
+        })
+        .to_string();
+        let kill_response =
+            exchange_one_http_request(&dest, &http_post_request("/kill", &kill_body));
+        assert!(
+            kill_response.starts_with("HTTP/1.1 200"),
+            "POST /kill on the restored host must return 200: {kill_response}"
+        );
+        let export_response =
+            exchange_one_http_request(&dest, &http_post_request("/kill-export", &kill_body));
+        assert!(
+            export_response.starts_with("HTTP/1.1 200"),
+            "POST /kill-export on the restored host must return 200: {export_response}"
+        );
+        let export_value: serde_json::Value = serde_json::from_str(http_body(&export_response))
+            .expect("POST /kill-export must return JSON");
+        let accept_body = serde_json::json!({
+            "event": export_value["event"],
+            "proof": export_value["proof"],
+            "tree_head": export_value["tree_head"],
+        })
+        .to_string();
+        let accept_response = exchange_one_http_request_with_mode(
+            &store_c,
+            &http_post_request("/kill-accept", &accept_body),
+            &mode,
+        );
+        assert!(
+            accept_response.starts_with("HTTP/1.1 200"),
+            "Store C POST /kill-accept must return 200: {accept_response}"
+        );
+        let refuse_response = exchange_one_http_request_with_mode(
+            &store_c,
+            &http_post_request_with_signature(
+                "/check-wimse",
+                &check_body,
+                &signature_input,
+                &signature,
+            ),
+            &mode,
+        );
+        assert!(
+            refuse_response.contains("HTTP/1.1 403"),
+            "Store C POST /check-wimse must refuse after kill-accept: {refuse_response}"
+        );
+        let refuse_payload = http_body(&refuse_response);
+        let refuse_value: serde_json::Value =
+            serde_json::from_str(refuse_payload).expect("check-wimse refuse JSON");
+        assert_eq!(
+            refuse_value["result"].as_str(),
+            Some("refused"),
+            "Store C must refuse the same WIMSE present after kill-accept: {refuse_payload}"
+        );
+        let refuse_reason = refuse_value["reason"].as_str().unwrap_or("");
+        assert!(
+            refuse_reason.contains("kill accept") || refuse_reason.contains("accepted a kill"),
+            "Store C must refuse from accepted death: {refuse_reason}"
+        );
+        assert!(
+            store_c.store().load_instance(&birth.instance.id).is_err(),
+            "Store C must not copy the issuing inode"
+        );
+        let _keep = directory_c;
+    }
+    #[test]
     fn cold_restore_at_threshold_two_host_birth_and_present_need_the_outside_member() {
         use crate::kernel::Kernel;
         use tempfile::tempdir;

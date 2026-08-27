@@ -15373,6 +15373,96 @@ mod tests {
         );
     }
     #[test]
+    fn cold_restore_wimse_verifies_on_a_store_that_pinned_the_original_issuer() {
+        let (_source_directory, first) = laboratory_kernel();
+        let (instance, capability) = laboratory_capability(&first);
+        let _source_wimse = first
+            .present_wimse(
+                &instance.id,
+                &capability.id,
+                Some(&holder_proof(&first, &instance)),
+                Some(&fresh_challenge(&first, &instance)),
+            )
+            .expect("a live source present must emit a Workload Identity Token");
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        first
+            .export_issuer_backup(&backup)
+            .expect("export a laboratory backup outside the data directory");
+        let dest_directory = tempdir().expect("create a restore destination");
+        let dest_root = dest_directory.path().join("restored");
+        let restored = Kernel::restore_from_backup(&backup, &dest_root)
+            .expect("restore onto an empty issuing store");
+        let diagnostics = restored
+            .restore_diagnostics(&backup)
+            .expect("restore diagnostics after honest restore");
+        assert!(
+            diagnostics.restore_succeeded && diagnostics.operation_normal,
+            "honest restore must report restore_succeeded and operation_normal"
+        );
+        let source_key = first_issuer_public_key(&first);
+        assert_eq!(
+            first_issuer_public_key(&restored),
+            source_key,
+            "the restored issuer public key must equal the source issuer public key"
+        );
+        assert!(
+            restored.store().holder_secret_path(&instance.id).exists(),
+            "the holder secret must restore from holders/"
+        );
+        let restored_wimse = restored
+            .present_wimse(
+                &instance.id,
+                &capability.id,
+                Some(&holder_proof(&restored, &instance)),
+                Some(&fresh_challenge(&restored, &instance)),
+            )
+            .expect(
+                "an honest present from the restored live instance must emit a Workload Identity Token",
+            );
+        restored
+            .verify_wimse(
+                &restored_wimse.workload_identity_token,
+                &restored_wimse.content_digest,
+                restored_wimse.presentation_json.as_bytes(),
+            )
+            .expect("an honest WIMSE present from the restored live instance must verify");
+        let (_verifier_directory, verifier) = laboratory_kernel();
+        verifier
+            .accept_issuer_public_key(&source_key)
+            .expect("store C pins the original issuer public key");
+        verifier
+            .verify_wimse(
+                &restored_wimse.workload_identity_token,
+                &restored_wimse.content_digest,
+                restored_wimse.presentation_json.as_bytes(),
+            )
+            .expect(
+                "a store that pinned the original public key must allow the restored WIMSE present",
+            );
+        restored
+            .kill_instance(&instance.id)
+            .expect("kill on the restored issuer");
+        let kill_directory = dest_directory.path().join("kill-bundle");
+        restored
+            .export_kill_bundle(Some(&instance.id), None, &kill_directory)
+            .expect("export a kill bundle after kill");
+        verifier
+            .accept_kill_bundle(&kill_directory)
+            .expect("store C must accept the kill bundle");
+        let refuse = verifier
+            .verify_wimse(
+                &restored_wimse.workload_identity_token,
+                &restored_wimse.content_digest,
+                restored_wimse.presentation_json.as_bytes(),
+            )
+            .expect_err("WIMSE verify must refuse after kill accept");
+        assert!(
+            refuse.to_string().contains("kill accept"),
+            "unexpected WIMSE-after-kill-accept error: {refuse}"
+        );
+    }
+    #[test]
     fn cold_restore_at_threshold_two_present_needs_the_outside_member() {
         let (_source_directory, kernel) = laboratory_kernel();
         let (custody_directory, outside) = add_outside_member_two(&kernel);
