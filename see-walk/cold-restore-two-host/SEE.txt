@@ -1,0 +1,11 @@
+Two-host cold-restore walk files
+
+Date: 27 August 2026.
+
+This folder is for Jason Gale. These files are public recipe text for a two-host cold restore on GET /laboratory. This folder does not contain issuer.secret, biscuit.secret, holder secrets, or member-two secrets. The two stores live under /tmp/prometheus-cold-restore-two-host-a and /tmp/prometheus-cold-restore-two-host-b. The backup lives under /tmp/prometheus-cold-restore-two-host-backup. Standing data-a is not the restore dest. Do not write data-a. Do not use data-a.
+
+Host A listens on 127.0.0.1:18850. Host B listens on 127.0.0.1:18851. Both hosts bind 127.0.0.1 only. This is not a public listener. Do not start SPIRE.
+
+A person uses GET /laboratory. GET / on the same hosts also posts backup, restore, and diagnose. Restore is restore. Restore is disaster recovery of the same issuer.
+
+See ANSWERS.md in this folder.

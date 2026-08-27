@@ -1258,7 +1258,8 @@ fn apply_member_two_request(kernel: &Kernel, request: &MemberTwoRequest) -> Resu
         .find(|key| key != &current && !before_keys.iter().any(|existing| existing == key))
         .ok_or_else(|| {
             Error::kernel(
-                "The member path did not persist a new member public key. The check fails closed.".to_string(),
+                "The member path did not persist a new member public key. The check fails closed."
+                    .to_string(),
             )
         })?;
     serde_json::to_string(&MemberTwoResponse {
@@ -5164,9 +5165,8 @@ mod tests {
 
         let dest_directory = tempdir().expect("create an empty restore destination");
         let dest = Kernel::open(dest_directory.path());
-        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback()).expect(
-            "an issuing host with empty data must start so POST /restore can write",
-        );
+        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback())
+            .expect("an issuing host with empty data must start so POST /restore can write");
         let restore_body = serde_json::json!({
             "from": backup.display().to_string(),
             "confirm": "restore",
@@ -5239,9 +5239,8 @@ mod tests {
 
         let dest_directory = tempdir().expect("create an empty restore destination");
         let dest = Kernel::open(dest_directory.path());
-        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback()).expect(
-            "an issuing host with empty data must start so POST /restore can write",
-        );
+        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback())
+            .expect("an issuing host with empty data must start so POST /restore can write");
         let restore_body = serde_json::json!({
             "from": backup.display().to_string(),
             "confirm": "restore",
@@ -5481,9 +5480,8 @@ mod tests {
 
         let dest_directory = tempdir().expect("create an empty restore destination");
         let dest = Kernel::open(dest_directory.path());
-        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback()).expect(
-            "an issuing host with empty data must start so POST /restore can write",
-        );
+        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback())
+            .expect("an issuing host with empty data must start so POST /restore can write");
         let restore_body = serde_json::json!({
             "from": backup.display().to_string(),
             "confirm": "restore",
@@ -5758,9 +5756,8 @@ mod tests {
 
         let dest_directory = tempdir().expect("create an empty restore destination");
         let dest = Kernel::open(dest_directory.path());
-        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback()).expect(
-            "an issuing host with empty data must start so POST /restore can write",
-        );
+        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback())
+            .expect("an issuing host with empty data must start so POST /restore can write");
         let restore_body = serde_json::json!({
             "from": backup.display().to_string(),
             "confirm": "restore",
@@ -5785,7 +5782,12 @@ mod tests {
             Some(true),
             "POST /restore at n=2 must report restore_succeeded: {restore_payload}"
         );
-        assert_body_has_no_secrets(&dest, restore_payload, None, "POST /restore at n=2 secrets lock");
+        assert_body_has_no_secrets(
+            &dest,
+            restore_payload,
+            None,
+            "POST /restore at n=2 secrets lock",
+        );
 
         let birth_without = serde_json::json!({
             "agent_type_id": agent_type.id,
@@ -5896,6 +5898,274 @@ mod tests {
     }
 
     #[test]
+    fn the_cold_restore_two_host_see_walk_names_loopback_backup_restore_diagnose_and_not_data_a() {
+        let walk = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/see-walk/cold-restore-two-host/ANSWERS.md"
+        ));
+        assert!(
+            walk.contains("127.0.0.1"),
+            "the two-host cold-restore see-walk must name 127.0.0.1"
+        );
+        assert!(
+            walk.contains("backup"),
+            "the two-host cold-restore see-walk must name backup"
+        );
+        assert!(
+            walk.contains("restore"),
+            "the two-host cold-restore see-walk must name restore"
+        );
+        assert!(
+            walk.contains("diagnose"),
+            "the two-host cold-restore see-walk must name diagnose"
+        );
+        assert!(
+            walk.contains("not data-a")
+                || walk.contains("Do not use data-a")
+                || walk.contains("Do not write data-a"),
+            "the two-host cold-restore see-walk must name not data-a"
+        );
+        assert!(
+            !walk.contains("--data data-a")
+                && !walk.contains("--data ./data-a")
+                && !walk.contains("--data /home/jason/Projects/Prometheus/data-a"),
+            "the two-host cold-restore see-walk must not use standing data-a as dest"
+        );
+    }
+
+    #[test]
+    fn the_cold_restore_two_host_see_walk_restores_presents_and_refuses_a_second_live_issuer() {
+        use crate::kernel::Kernel;
+        use tempfile::tempdir;
+
+        let source_directory = tempdir().expect("create a source directory");
+        let source = Kernel::open(source_directory.path());
+        source.initialize().expect("initialize the source issuer");
+        let birth = laboratory_host_birth(&source);
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        let backup_body = serde_json::json!({
+            "path": backup.display().to_string(),
+            "confirm": "backup",
+        })
+        .to_string();
+        let backup_response =
+            exchange_one_http_request(&source, &http_post_request("/backup", &backup_body));
+        assert!(
+            backup_response.starts_with("HTTP/1.1 200"),
+            "POST /backup must succeed on Host A: {backup_response}"
+        );
+
+        let dest_directory = tempdir().expect("create an empty restore destination");
+        let dest = Kernel::open(dest_directory.path());
+        super::prepare_host_store(&dest, &super::HostMode::issuing_loopback())
+            .expect("an issuing host with empty data must start so POST /restore can write");
+        let restore_body = serde_json::json!({
+            "from": backup.display().to_string(),
+            "confirm": "restore",
+        })
+        .to_string();
+        let restore_response =
+            exchange_one_http_request(&dest, &http_post_request("/restore", &restore_body));
+        assert!(
+            restore_response.starts_with("HTTP/1.1 200"),
+            "POST /restore onto empty Host B must succeed: {restore_response}"
+        );
+        let restore_payload = http_body(&restore_response);
+        let restore_value: serde_json::Value = serde_json::from_str(restore_payload)
+            .expect("POST /restore must return RestoreDiagnostics JSON");
+        assert_eq!(
+            restore_value["operation_normal"].as_bool(),
+            Some(true),
+            "POST /restore must report operation_normal: {restore_payload}"
+        );
+        assert_eq!(
+            restore_value["restore_succeeded"].as_bool(),
+            Some(true),
+            "POST /restore must report restore_succeeded: {restore_payload}"
+        );
+        assert_body_has_no_secrets(&dest, restore_payload, None, "POST /restore secrets lock");
+
+        let diagnose_body = serde_json::json!({
+            "from": backup.display().to_string(),
+        })
+        .to_string();
+        let diagnose_response =
+            exchange_one_http_request(&dest, &http_post_request("/diagnose", &diagnose_body));
+        assert!(
+            diagnose_response.starts_with("HTTP/1.1 200"),
+            "POST /diagnose must succeed after restore: {diagnose_response}"
+        );
+        let diagnose_payload = http_body(&diagnose_response);
+        let diagnose_value: serde_json::Value = serde_json::from_str(diagnose_payload)
+            .expect("POST /diagnose must return RestoreDiagnostics JSON");
+        assert_eq!(
+            diagnose_value["operation_normal"].as_bool(),
+            Some(true),
+            "POST /diagnose must report operation_normal: {diagnose_payload}"
+        );
+        assert_body_has_no_secrets(&dest, diagnose_payload, None, "POST /diagnose secrets lock");
+
+        let holder_path = dest
+            .store()
+            .holder_secret_path(&birth.instance.id)
+            .display()
+            .to_string();
+        assert!(
+            dest.store().holder_secret_path(&birth.instance.id).exists(),
+            "the holder secret must restore from holders/"
+        );
+        let (_presentation_json, _certificate_pem) = laboratory_host_present_svid_http(
+            &dest,
+            &birth.instance.id,
+            &birth.capability.id,
+            &holder_path,
+            "internal",
+        );
+        let _wimse = laboratory_host_present_wimse_http(
+            &dest,
+            &birth.instance.id,
+            &birth.capability.id,
+            &holder_path,
+            "internal",
+        );
+
+        let source_restore =
+            exchange_one_http_request(&source, &http_post_request("/restore", &restore_body));
+        assert!(
+            source_restore.contains("HTTP/1.1 403"),
+            "POST /restore on Host A must refuse a dest that already has an issuer: {source_restore}"
+        );
+        let source_restore_payload = http_body(&source_restore);
+        assert!(
+            source_restore_payload.contains("already has an issuer")
+                || source_restore_payload.contains("already"),
+            "POST /restore on Host A must name the dest refuse: {source_restore_payload}"
+        );
+
+        let n2_source_directory = tempdir().expect("create an n=2 source directory");
+        let n2_source = Kernel::open(n2_source_directory.path());
+        n2_source
+            .initialize()
+            .expect("initialize the n=2 source issuer");
+        let custody_directory = tempdir().expect("create a member-two custody directory");
+        let outside = custody_directory.path().join("member-two.secret");
+        raise_live_host_issuance_threshold_two(&n2_source, &outside);
+        let agent_type = laboratory_agent_type(&n2_source);
+        let n2_backup_directory = tempdir().expect("create an n=2 backup directory");
+        let n2_backup = n2_backup_directory.path().join("issuer-backup");
+        let n2_backup_body = serde_json::json!({
+            "path": n2_backup.display().to_string(),
+            "confirm": "backup",
+        })
+        .to_string();
+        let n2_backup_response =
+            exchange_one_http_request(&n2_source, &http_post_request("/backup", &n2_backup_body));
+        assert!(
+            n2_backup_response.starts_with("HTTP/1.1 200"),
+            "POST /backup must succeed on the n=2 source: {n2_backup_response}"
+        );
+        let n2_dest_directory = tempdir().expect("create an empty n=2 restore destination");
+        let n2_dest = Kernel::open(n2_dest_directory.path());
+        super::prepare_host_store(&n2_dest, &super::HostMode::issuing_loopback())
+            .expect("an issuing host with empty data must start so POST /restore can write");
+        let n2_restore_body = serde_json::json!({
+            "from": n2_backup.display().to_string(),
+            "confirm": "restore",
+        })
+        .to_string();
+        let n2_restore_response =
+            exchange_one_http_request(&n2_dest, &http_post_request("/restore", &n2_restore_body));
+        assert!(
+            n2_restore_response.starts_with("HTTP/1.1 200"),
+            "POST /restore onto empty n=2 dest must succeed: {n2_restore_response}"
+        );
+        let n2_restore_payload = http_body(&n2_restore_response);
+        let n2_restore_value: serde_json::Value = serde_json::from_str(n2_restore_payload)
+            .expect("POST /restore at n=2 must return RestoreDiagnostics JSON");
+        assert_eq!(
+            n2_restore_value["operation_normal"].as_bool(),
+            Some(true),
+            "POST /restore at n=2 must report operation_normal: {n2_restore_payload}"
+        );
+        let birth_without = serde_json::json!({
+            "agent_type_id": agent_type.id,
+            "owner": "laboratory",
+            "intent": "read",
+            "audience": "internal",
+            "on_behalf_of": "autonomous",
+        })
+        .to_string();
+        assert_live_host_write_refuses_without_member_secret_path(
+            &n2_dest,
+            "/birth",
+            &birth_without,
+            "POST /birth on restored dest at n=2 without the outside member",
+        );
+        let birth_with = serde_json::json!({
+            "agent_type_id": agent_type.id,
+            "owner": "laboratory",
+            "intent": "read",
+            "audience": "internal",
+            "on_behalf_of": "autonomous",
+            "member_secret_path": outside.to_string_lossy(),
+        })
+        .to_string();
+        let birth_response =
+            exchange_one_http_request(&n2_dest, &http_post_request("/birth", &birth_with));
+        assert!(
+            birth_response.starts_with("HTTP/1.1 200"),
+            "POST /birth on restored dest at n=2 with the outside member must return 200: {birth_response}"
+        );
+        let birth_value: serde_json::Value =
+            serde_json::from_str(http_body(&birth_response)).expect("POST /birth must return JSON");
+        let instance_id = birth_value["instance_id"]
+            .as_str()
+            .expect("POST /birth must return instance_id")
+            .to_string();
+        let capability_id = birth_value["capability_id"]
+            .as_str()
+            .expect("POST /birth must return capability_id")
+            .to_string();
+        let n2_holder = n2_dest
+            .store()
+            .holder_secret_path(&instance_id)
+            .display()
+            .to_string();
+        let challenge_body = serde_json::json!({
+            "instance_id": instance_id,
+            "member_secret_path": outside.to_string_lossy(),
+        })
+        .to_string();
+        let challenge_response =
+            exchange_one_http_request(&n2_dest, &http_post_request("/challenge", &challenge_body));
+        assert!(
+            challenge_response.starts_with("HTTP/1.1 200"),
+            "POST /challenge on restored dest at n=2 with the outside member must return 200: {challenge_response}"
+        );
+        let challenge_value: serde_json::Value =
+            serde_json::from_str(http_body(&challenge_response))
+                .expect("POST /challenge must return JSON");
+        let present_without = serde_json::json!({
+            "instance_id": instance_id,
+            "capability_id": capability_id,
+            "intent": "read",
+            "audience": "internal",
+            "holder_secret_path": n2_holder,
+            "challenge_nonce": challenge_value["challenge_nonce"],
+            "on_behalf_of": "autonomous",
+        })
+        .to_string();
+        assert_live_host_write_refuses_without_member_secret_path(
+            &n2_dest,
+            "/present-svid",
+            &present_without,
+            "POST /present-svid on restored dest at n=2 without the outside member",
+        );
+        let _keep_n2_custody = custody_directory;
+    }
+
+    #[test]
     fn check_only_host_refuses_backup_and_restore() {
         let (_directory, kernel) = laboratory_verifier_kernel();
         let mode = super::HostMode::check_only_loopback();
@@ -5931,7 +6201,9 @@ mod tests {
     fn the_laboratory_operator_page_includes_backup_restore_diagnose_controls() {
         let laboratory = laboratory_operator_page_html();
         assert!(
-            laboratory.contains("fetch(\"/backup\"") && laboratory.contains("confirm") && laboratory.contains("backup"),
+            laboratory.contains("fetch(\"/backup\"")
+                && laboratory.contains("confirm")
+                && laboratory.contains("backup"),
             "GET /laboratory must post POST /backup with confirm backup: {laboratory}"
         );
         assert!(
