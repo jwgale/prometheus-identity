@@ -289,6 +289,14 @@ impl Store {
     /// write is not an omit. Those writes would make verify accept a foreign
     /// or stolen key.
     ///
+    /// A later persist must not remove an accepted previous issuer key or
+    /// postpone an accepted previous-key kill_date. Freeze is the earlier of
+    /// the unsigned file kill_date and the earliest signed kill_date on a
+    /// previous_key_accept note for that public key. A later persist must not
+    /// omit an accepted previous key that a signed previous_key_accept note
+    /// already records. Honest accept writes the accepted previous key before
+    /// that signed line exists. That first write is not an omit.
+    ///
     /// Emptying accepted_issuer_public_keys is not allow-all: verify still uses
     /// the current key and refuses an empty combined list. threshold_n cannot
     /// be lowered. crypto_profile and issuance_log are stored fields. They do
@@ -516,11 +524,20 @@ impl Store {
     /// accepted_previous_issuer_keys cannot lose a stored key and cannot postpone
     /// a stored kill_date. Growing is the accept path. This is verifier state.
     /// This is not a sixth identity record.
+    /// Freeze is the earlier of the unsigned file kill_date and the earliest
+    /// signed kill_date on a previous_key_accept note for that public key.
+    /// A planted later file date must not become the freeze.
+    /// A persist must not omit a previous key that a signed previous_key_accept
+    /// note already records. Freeze against that signed list, not only the file.
+    /// A planted empty list must not become the freeze.
+    /// Honest accept writes the accepted previous key before the signed line exists.
+    /// That first write is not an omit.
     fn require_accepted_previous_keys_not_raised(
         &self,
         stored: &Issuer,
         issuer: &Issuer,
     ) -> Result<()> {
+        let signed_accepted = self.signed_accepted_previous_key_kill_dates()?;
         for stored_previous in &stored.accepted_previous_issuer_keys {
             let stored_hex = stored_previous.public_key_hex.trim();
             let matching: Vec<_> = issuer
@@ -533,7 +550,42 @@ impl Store {
                     "An accepted previous issuer key cannot be removed after accept. A later write that drops an accepted previous key is refused. Removing the key would treat a stolen old key as never-previous. That is a golden-ticket-class raise. Verify must not accept a stolen key after kill_date. This is not a sixth identity record.",
                 ));
             }
-            if matching[0].kill_date > stored_previous.kill_date {
+            let freeze = signed_accepted
+                .iter()
+                .find(|(key, _)| key.trim() == stored_hex)
+                .map(|(_, signed)| stored_previous.kill_date.min(*signed))
+                .unwrap_or(stored_previous.kill_date);
+            if matching[0].kill_date > freeze {
+                return Err(Error::denied(
+                    "An accepted previous issuer key kill_date is frozen after accept. A later write that moves that kill_date later is refused. Postponing a previous-key kill_date is a golden-ticket-class raise. A stolen old key must not sign after death. Only a shorter remaining life is allowed. This is not a sixth identity record.",
+                ));
+            }
+        }
+        for (signed_hex, signed_date) in &signed_accepted {
+            let signed_hex = signed_hex.trim();
+            if signed_hex.is_empty() {
+                continue;
+            }
+            let matching: Vec<_> = issuer
+                .accepted_previous_issuer_keys
+                .iter()
+                .filter(|previous| previous.public_key_hex.trim() == signed_hex)
+                .collect();
+            if matching.is_empty() {
+                return Err(Error::denied(
+                    "A signed accepted previous issuer key cannot be omitted after accept. A later write that drops an accepted previous key that a signed previous_key_accept note already records is refused. Omitting the key would treat a stolen old key as never-previous. That is a golden-ticket-class raise. Verify must not accept a stolen key after kill_date. This is not a sixth identity record.",
+                ));
+            }
+            let file_date = stored
+                .accepted_previous_issuer_keys
+                .iter()
+                .find(|previous| previous.public_key_hex.trim() == signed_hex)
+                .map(|previous| previous.kill_date);
+            let freeze = match file_date {
+                Some(file) => file.min(*signed_date),
+                None => *signed_date,
+            };
+            if matching[0].kill_date > freeze {
                 return Err(Error::denied(
                     "An accepted previous issuer key kill_date is frozen after accept. A later write that moves that kill_date later is refused. Postponing a previous-key kill_date is a golden-ticket-class raise. A stolen old key must not sign after death. Only a shorter remaining life is allowed. This is not a sixth identity record.",
                 ));
@@ -775,6 +827,38 @@ impl Store {
         Ok(dates)
     }
 
+    /// Earliest parseable accepted-previous-key kill_date on a signed
+    /// previous_key_accept note. Walks read_log only. This function must
+    /// not call load_issuer.
+    /// Each previous_key_accept note stores previous_public_key as hex
+    /// and kill_date as RFC3339. The kill_date token is not the
+    /// issuer.kill_date seal prefix.
+    /// Unparseable notes are skipped. The same previous public key on
+    /// more than one accept line keeps the minimum date.
+    pub fn signed_accepted_previous_key_kill_dates(&self) -> Result<Vec<(String, DateTime<Utc>)>> {
+        let mut dates: Vec<(String, DateTime<Utc>)> = Vec::new();
+        for event in self.read_log()? {
+            if event.operation != "previous_key_accept" {
+                continue;
+            }
+            let Some(note) = event.note.as_deref() else {
+                continue;
+            };
+            let Some((public_key, kill_date)) = previous_key_and_kill_date_from_rotate_note(note)
+            else {
+                continue;
+            };
+            if let Some((_, existing)) = dates.iter_mut().find(|(key, _)| key == &public_key) {
+                if kill_date < *existing {
+                    *existing = kill_date;
+                }
+            } else {
+                dates.push((public_key, kill_date));
+            }
+        }
+        Ok(dates)
+    }
+
     /// Highest signed verify_threshold_n on a signed issuer_verify_threshold note.
     /// Walks read_log only. This function must not call load_issuer.
     /// Each issuer_verify_threshold note stores n after "verify_threshold_n to ".
@@ -827,7 +911,14 @@ impl Store {
     /// highest signed issuer_verify_threshold note n, set the
     /// in-memory n to that log n. Do not write the file. A planted
     /// lower n is not live.
-    /// Do not overlay accepted_previous_issuer_keys.
+    /// If an accepted_previous_issuer_keys kill_date is later than the
+    /// earliest signed kill_date on a previous_key_accept note for that
+    /// public key, set the in-memory accepted previous-key kill_date to
+    /// that signed date. Do not write the file. A planted later accepted
+    /// previous-key date is not live.
+    /// If a signed previous_key_accept note records a previous public key
+    /// that is not in the file, restore that accepted previous key in
+    /// memory. Do not write the file. A planted drop is not live.
     pub fn load_issuer(&self) -> Result<Issuer> {
         if !self.issuer_path().exists() {
             return Err(Error::kernel(
@@ -879,6 +970,35 @@ impl Store {
         let log_verify_n = self.highest_log_verify_threshold_n()?;
         if issuer.verify_threshold_n < log_verify_n {
             issuer.verify_threshold_n = log_verify_n;
+        }
+        let signed_accepted_previous = self.signed_accepted_previous_key_kill_dates()?;
+        for entry in &mut issuer.accepted_previous_issuer_keys {
+            let hex = entry.public_key_hex.trim();
+            let Some((_, signed)) = signed_accepted_previous
+                .iter()
+                .find(|(key, _)| key.trim() == hex)
+            else {
+                continue;
+            };
+            if entry.kill_date > *signed {
+                entry.kill_date = *signed;
+            }
+        }
+        for (public_key_hex, kill_date) in &signed_accepted_previous {
+            let hex = public_key_hex.trim();
+            let already_present = issuer
+                .accepted_previous_issuer_keys
+                .iter()
+                .any(|entry| entry.public_key_hex.trim() == hex);
+            if already_present {
+                continue;
+            }
+            issuer
+                .accepted_previous_issuer_keys
+                .push(PreviousIssuerKey {
+                    public_key_hex: hex.to_string(),
+                    kill_date: *kill_date,
+                });
         }
         Ok(issuer)
     }
@@ -1620,6 +1740,267 @@ impl Store {
             return false;
         }
         text.lines().any(|existing| existing == line)
+    }
+
+    pub fn extra_member_secret_paths(&self) -> Vec<PathBuf> {
+        self.extra_member_secret_paths
+            .lock()
+            .expect("member secret path lock")
+            .clone()
+    }
+
+    fn resolved_path(path: &Path) -> PathBuf {
+        if path.exists() {
+            path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+        } else if let Some(parent) = path.parent() {
+            let parent_resolved = if parent.as_os_str().is_empty() {
+                PathBuf::from(".")
+            } else {
+                parent.to_path_buf()
+            };
+            let parent_resolved = parent_resolved.canonicalize().unwrap_or(parent_resolved);
+            match path.file_name() {
+                Some(name) => parent_resolved.join(name),
+                None => parent_resolved,
+            }
+        } else {
+            path.to_path_buf()
+        }
+    }
+
+    fn path_is_inside_or_equal(candidate: &Path, container: &Path) -> bool {
+        let candidate = Self::resolved_path(candidate);
+        let container = Self::resolved_path(container);
+        candidate == container || candidate.starts_with(&container)
+    }
+
+    fn is_member_two_secret_name(name: &str) -> bool {
+        let trimmed = name.trim();
+        trimmed.starts_with("issuer-member-") && trimmed.ends_with(".secret")
+    }
+
+    fn dest_is_inside_member_two_custody(&self, dest: &Path) -> bool {
+        for extra in self.extra_member_secret_paths() {
+            if Self::path_is_inside_or_equal(dest, &extra) {
+                return true;
+            }
+            if let Some(parent) = extra.parent() {
+                if parent.as_os_str().is_empty() {
+                    continue;
+                }
+                if Self::path_is_inside_or_equal(dest, parent) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn dest_looks_like_member_two_custody(dest: &Path) -> Result<bool> {
+        if !dest.exists() || !dest.is_dir() {
+            return Ok(false);
+        }
+        for entry in fs::read_dir(dest)? {
+            let entry = entry?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name == "member-two.secret"
+                || name == "member-three.secret"
+                || Self::is_member_two_secret_name(&name)
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn backup_file_names() -> &'static [&'static str] {
+        &[
+            "issuer.secret",
+            "biscuit.secret",
+            "issuer.json",
+            "issuance.log",
+        ]
+    }
+
+    fn backup_directory_names() -> &'static [&'static str] {
+        &[
+            "agent_types",
+            "instances",
+            "capabilities",
+            "chains",
+            "holders",
+        ]
+    }
+
+    fn copy_backup_file(source: &Path, dest: &Path) -> Result<()> {
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::copy(source, dest)?;
+        #[cfg(unix)]
+        {
+            if dest
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(|name| name.ends_with(".secret"))
+                .unwrap_or(false)
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(dest, fs::Permissions::from_mode(0o600))?;
+            }
+        }
+        Ok(())
+    }
+
+    fn copy_backup_allow_list(source_root: &Path, dest_root: &Path) -> Result<()> {
+        for file_name in Self::backup_file_names() {
+            let source = source_root.join(file_name);
+            if !source.exists() {
+                continue;
+            }
+            Self::copy_backup_file(&source, &dest_root.join(file_name))?;
+        }
+        for directory_name in Self::backup_directory_names() {
+            let source_directory = source_root.join(directory_name);
+            let dest_directory = dest_root.join(directory_name);
+            fs::create_dir_all(&dest_directory)?;
+            if !source_directory.exists() {
+                continue;
+            }
+            for entry in fs::read_dir(&source_directory)? {
+                let entry = entry?;
+                let name = entry.file_name();
+                let name_text = name.to_string_lossy();
+                if Self::is_member_two_secret_name(&name_text) {
+                    continue;
+                }
+                if entry.path().is_dir() {
+                    continue;
+                }
+                Self::copy_backup_file(&entry.path(), &dest_directory.join(name))?;
+            }
+        }
+        Ok(())
+    }
+
+    fn refuse_tainted_member_two_backup(backup: &Path) -> Result<()> {
+        if !backup.exists() || !backup.is_dir() {
+            return Ok(());
+        }
+        for entry in fs::read_dir(backup)? {
+            let entry = entry?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if Self::is_member_two_secret_name(&name) {
+                return Err(Error::denied(
+                    "The backup contains an issuer-member secret. A tainted backup must not install member two. Member two stays in outside custody. The check fails closed.",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Copy issuer.secret plus the issuance ledger to a path outside this store.
+    /// Do not copy issuer-member-*.secret. This is operator disk copy, not mint.
+    /// Do not append issuance.log. This is not a sixth identity record.
+    /// Do not require issuer seal. A dead computer may be unsealed.
+    pub fn export_issuer_backup(&self, dest: &Path) -> Result<()> {
+        if Self::path_is_inside_or_equal(dest, self.root())
+            || self.path_is_inside_data_directory(dest)
+        {
+            return Err(Error::denied(
+                "The backup path must live outside the data directory. A path inside the data directory is refused. The check fails closed.",
+            ));
+        }
+        if self.dest_is_inside_member_two_custody(dest) {
+            return Err(Error::denied(
+                "The backup path must not be the member-two custody path and must not live inside that custody directory. Member two stays in outside custody. The check fails closed.",
+            ));
+        }
+        if dest.exists() {
+            if dest.is_file() {
+                return Err(Error::denied(
+                    "The backup path must be a directory. A file path is refused. The check fails closed.",
+                ));
+            }
+            let issuer_at_dest = dest.join("issuer.json");
+            let secret_at_dest = dest.join("issuer.secret");
+            let is_empty = dest.read_dir()?.next().is_none();
+            if !is_empty {
+                if issuer_at_dest.exists() {
+                    let other: crate::records::Issuer = self.read_json(&issuer_at_dest)?;
+                    let this = self.load_issuer()?;
+                    if other.current_public_key_hex() != this.current_public_key_hex() {
+                        return Err(Error::denied(
+                            "The backup path is a non-empty directory of a different store. A different issuer is refused. The check fails closed.",
+                        ));
+                    }
+                } else if secret_at_dest.exists() {
+                    return Err(Error::denied(
+                        "The backup path is a non-empty directory of a different store. A destination that already holds issuer.secret without this issuer is refused. The check fails closed.",
+                    ));
+                } else {
+                    return Err(Error::denied(
+                        "The backup path is a non-empty directory of a different store. The check fails closed.",
+                    ));
+                }
+            }
+        } else {
+            fs::create_dir_all(dest)?;
+        }
+        if !self.issuer_path().exists() || !self.secret_path().exists() {
+            return Err(Error::denied(
+                "The issuer record or issuer.secret is missing. A backup without the key and the ledger is refused. The check fails closed.",
+            ));
+        }
+        Self::copy_backup_allow_list(&self.root, dest)?;
+        Ok(())
+    }
+
+    /// Copy a laboratory backup of issuer.secret plus the ledger onto an empty issuing store.
+    /// Do not copy issuer-member-*.secret. This is operator disk copy, not mint.
+    /// Do not append issuance.log. This is not a sixth identity record.
+    /// Do not require issuer seal. A dead computer may be unsealed.
+    pub fn restore_issuer_backup(backup: &Path, dest_root: &Path) -> Result<()> {
+        if !backup.exists() || !backup.is_dir() {
+            return Err(Error::denied(
+                "The backup path must be a directory that holds issuer.secret and issuer.json. The check fails closed.",
+            ));
+        }
+        let backup_secret = backup.join("issuer.secret");
+        let backup_issuer = backup.join("issuer.json");
+        if !backup_secret.exists() {
+            return Err(Error::denied(
+                "The backup is missing issuer.secret. Restore is key plus ledger. The check fails closed.",
+            ));
+        }
+        if !backup_issuer.exists() {
+            return Err(Error::denied(
+                "The backup is missing issuer.json. Restore is key plus ledger. The check fails closed.",
+            ));
+        }
+        if Self::path_is_inside_or_equal(dest_root, backup) {
+            return Err(Error::denied(
+                "The restore destination must not live inside the backup path. The check fails closed.",
+            ));
+        }
+        if Self::dest_looks_like_member_two_custody(dest_root)? {
+            return Err(Error::denied(
+                "The restore destination must not be a member-two custody path. Member two stays in outside custody. The check fails closed.",
+            ));
+        }
+        if dest_root.join("issuer.json").exists() || dest_root.join("issuer.secret").exists() {
+            return Err(Error::denied(
+                "The restore destination already has an issuer. Restore onto a live issuing store is refused. This is not a second live Create Agent Principal. The check fails closed.",
+            ));
+        }
+        Self::refuse_tainted_member_two_backup(backup)?;
+        if !dest_root.exists() {
+            fs::create_dir_all(dest_root)?;
+        }
+        Self::copy_backup_allow_list(backup, dest_root)?;
+        Ok(())
     }
 }
 

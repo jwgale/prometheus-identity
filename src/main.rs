@@ -652,6 +652,29 @@ enum IssuerCommand {
     /// Add or show issuer members. The Biscuit envelope key is not a member.
     #[command(subcommand)]
     Member(IssuerMemberCommand),
+    /// Write a laboratory backup of issuer.secret plus the ledger.
+    /// The path must live outside the data directory. Member two is not copied.
+    /// This is not a second live Create Agent Principal. This is not a product name.
+    Backup {
+        /// Directory outside the data directory that will receive the backup.
+        #[arg(long)]
+        path: PathBuf,
+    },
+    /// Restore issuer.secret plus the ledger onto an empty issuing store.
+    /// The process --data directory must be empty of issuer. Member two is not installed.
+    /// This is not a second live Create Agent Principal. This is not a product name.
+    Restore {
+        /// Backup directory that holds issuer.secret and issuer.json.
+        #[arg(long)]
+        from: PathBuf,
+    },
+    /// Open this process data store and report restore diagnostics against a backup.
+    /// This is a laboratory verb. This is not a product name. Secret bytes are not printed.
+    Diagnose {
+        /// Backup directory that holds issuer.secret and issuer.json.
+        #[arg(long)]
+        from: PathBuf,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -1817,6 +1840,31 @@ fn run() -> Result<ExitCode> {
         Command::Issuer(IssuerCommand::Member(IssuerMemberCommand::Add { secret_path })) => {
             let issuer = kernel.add_issuer_member_with_secret_path(Some(secret_path.as_path()))?;
             print_json(&issuer)?;
+        }
+        Command::Issuer(IssuerCommand::Backup { path }) => {
+            kernel.export_issuer_backup(&path)?;
+            print_json(&serde_json::json!({
+                "result": "accepted",
+                "path": path.display().to_string(),
+                "message": "The issuer backup was written. This is laboratory cold restore backup. Secret bytes are not printed. Member two is not in the backup."
+            }))?;
+        }
+        Command::Issuer(IssuerCommand::Restore { from }) => {
+            let restored = Kernel::restore_from_backup(&from, &arguments.data_directory)?;
+            let diagnostics = restored.restore_diagnostics(&from)?;
+            print!("{}", diagnostics.format_human());
+        }
+        Command::Issuer(IssuerCommand::Diagnose { from }) => {
+            let diagnostics = kernel.restore_diagnostics(&from)?;
+            print!("{}", diagnostics.format_human());
+            if !diagnostics.restore_succeeded || !diagnostics.operation_normal {
+                let check = diagnostics
+                    .first_failed_check()
+                    .unwrap_or("operation_normal");
+                anyhow::bail!(
+                    "The restore diagnostics did not report restore_succeeded and operation_normal. {check} failed. The check fails closed."
+                );
+            }
         }
         Command::Receipt(ReceiptCommand::Verify {
             receipt,

@@ -26,8 +26,8 @@ pub mod wimse;
 
 pub use error::{Error, Result};
 pub use kernel::{
-    BirthWrite, CheckDecision, DecisionReceipt, HolderChallenge, HolderProof, Kernel, SpawnWrite,
-    StoreStatus, VerifierChallenge,
+    BirthWrite, CheckDecision, DecisionReceipt, HolderChallenge, HolderProof, Kernel,
+    RestoreDiagnostics, SpawnWrite, StoreStatus, VerifierChallenge,
 };
 pub use presentation::Presentation;
 pub use svid::X509SvidArtifact;

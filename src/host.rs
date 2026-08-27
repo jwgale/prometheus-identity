@@ -558,7 +558,8 @@ struct SealResponse {
 /// POST /member-two body. Reuse Kernel::add_issuer_member_with_secret_path.
 /// The operator types a local outside path. The host process writes the new
 /// member secret only at that path. Secret bytes are not uploaded and not returned.
-/// A third member is refused. After issuer seal this write is refused.
+/// A third laboratory member is allowed. A fourth member is refused.
+/// After issuer seal this write is refused.
 #[derive(Debug, Deserialize)]
 struct MemberTwoRequest {
     member_secret_path: String,
@@ -601,8 +602,8 @@ struct SetVerifyThresholdResponse {
 
 /// POST /set-issuer-threshold body. Reuse Kernel::set_issuer_threshold.
 /// Confirm must equal the exact word issuer-threshold.
-/// Persist the member-two public key before raising issuance threshold_n.
-/// n=3 stays parked. After issuer seal this write is refused.
+/// Persist member public keys before raising issuance threshold_n.
+/// n=3 is allowed when three members exist. After issuer seal this write is refused.
 #[derive(Debug, Deserialize)]
 struct SetIssuerThresholdRequest {
     /// Must equal the exact word issuer-threshold. Missing or a mismatch is refused.
@@ -1195,7 +1196,8 @@ fn apply_kill_request(kernel: &Kernel, request: &KillRequest) -> Result<String> 
 
 /// Reuse Kernel::add_issuer_member_with_secret_path. Do not invent a second member-add path.
 /// The host writes the new member secret only at the typed outside path.
-/// Secret bytes are not returned. A third member is refused. After issuer seal this write is refused.
+/// Secret bytes are not returned. A third laboratory member is allowed.
+/// A fourth member is refused. After issuer seal this write is refused.
 fn apply_member_two_request(kernel: &Kernel, request: &MemberTwoRequest) -> Result<String> {
     let path = request.member_secret_path.trim();
     if path.is_empty() {
@@ -1209,24 +1211,25 @@ fn apply_member_two_request(kernel: &Kernel, request: &MemberTwoRequest) -> Resu
             "The issuer is already sealed. After issuer seal this member-two write is refused. The check fails closed.",
         ));
     }
-    if issuer.signing_member_count() >= 2 {
+    if issuer.signing_member_count() >= 3 {
         return Err(Error::denied(
-            "This host path registers member two only. A third member is refused. The check fails closed.",
+            "This host path registers up to three laboratory members. A fourth member is refused. The check fails closed.",
         ));
     }
+    let before_keys = issuer.trusted_signing_member_public_keys();
     let issuer = kernel.add_issuer_member_with_secret_path(Some(std::path::Path::new(path)))?;
     let current = issuer.current_public_key_hex();
-    let member_two = issuer
+    let new_member = issuer
         .trusted_signing_member_public_keys()
         .into_iter()
-        .find(|key| key != &current)
+        .find(|key| key != &current && !before_keys.iter().any(|existing| existing == key))
         .ok_or_else(|| {
             Error::kernel(
-                "The member-two path did not persist a second member public key. The check fails closed.".to_string(),
+                "The member path did not persist a new member public key. The check fails closed.".to_string(),
             )
         })?;
     serde_json::to_string(&MemberTwoResponse {
-        public_key_hex: member_two,
+        public_key_hex: new_member,
     })
     .map_err(Error::from)
 }
@@ -1285,8 +1288,8 @@ fn apply_set_verify_threshold_request(
 
 /// Reuse Kernel::set_issuer_threshold. Do not invent a second issuer-threshold path.
 /// Confirm must equal the exact word issuer-threshold.
-/// Persist the member-two public key before raising issuance threshold_n.
-/// n=3 stays parked. After issuer seal this write is refused.
+/// Persist member public keys before raising issuance threshold_n.
+/// n=3 is allowed when three members exist. After issuer seal this write is refused.
 fn apply_set_issuer_threshold_request(
     kernel: &Kernel,
     request: &SetIssuerThresholdRequest,
@@ -1305,15 +1308,20 @@ fn apply_set_issuer_threshold_request(
             ))
         }
     };
-    if n > 2 {
+    if n > 3 {
         return Err(Error::denied(
-            "This host path sets threshold_n to 2 after member two exists. An issuance threshold of 3 is not this path. The check fails closed.",
+            "This host path sets threshold_n to 2 or 3 after the matching members exist. An issuance threshold above 3 is not this path. The check fails closed.",
         ));
     }
     let issuer = kernel.store().load_issuer()?;
     if issuer.kill_date.is_some() {
         return Err(Error::denied(
             "The issuer is already sealed. After issuer seal this issuer-threshold write is refused. The check fails closed.",
+        ));
+    }
+    if n >= 3 && issuer.signing_member_count() < 3 {
+        return Err(Error::denied(
+            "The third member public key must be persisted before threshold_n can be raised to 3. Add a third member first. The check fails closed.",
         ));
     }
     if n >= 2 && issuer.signing_member_count() < 2 {
@@ -12665,14 +12673,15 @@ mod tests {
     }
 
     #[test]
-    fn the_host_set_issuer_threshold_refuses_three_members() {
+    fn the_host_set_issuer_threshold_sets_three_after_three_members() {
         use crate::kernel::Kernel;
         use tempfile::tempdir;
 
         let store_directory = tempdir().expect("create a store directory");
-        let custody_directory = tempdir().expect("create a custody directory");
-        let outside = custody_directory.path().join("member-two.secret");
-        let third = custody_directory.path().join("member-three.secret");
+        let two_directory = tempdir().expect("create a member-two custody directory");
+        let three_directory = tempdir().expect("create a member-three custody directory");
+        let outside = two_directory.path().join("member-two.secret");
+        let third = three_directory.path().join("member-three.secret");
         let kernel = Kernel::open(store_directory.path());
         kernel.initialize().expect("initialize the issuer");
         kernel
@@ -12680,14 +12689,14 @@ mod tests {
             .expect("add member two outside the data directory");
         kernel
             .add_issuer_member_with_secret_path(Some(&third))
-            .expect("add a third member so the host must still refuse n=3");
+            .expect("add a third member outside the data directory");
         let before = kernel
             .store()
             .load_issuer()
-            .expect("load the issuer before a refused n=3");
+            .expect("load the issuer before n=3");
         assert!(
             before.signing_member_count() >= 3,
-            "this refuse must hold when three members exist"
+            "n=3 requires three members"
         );
         assert_eq!(before.threshold_n.max(1), 1);
 
@@ -12699,27 +12708,91 @@ mod tests {
         let response =
             exchange_one_http_request(&kernel, &http_post_request("/set-issuer-threshold", &body));
         assert!(
-            response.contains("HTTP/1.1 403"),
-            "POST /set-issuer-threshold must refuse n=3: {response}"
+            response.starts_with("HTTP/1.1 200"),
+            "POST /set-issuer-threshold must set n=3 after three members: {response}"
         );
         let payload = http_body(&response);
-        assert!(
-            payload.contains("3")
-                || payload.contains("not this path")
-                || payload.contains("parked"),
-            "POST /set-issuer-threshold must name the parked n=3 refuse: {payload}"
+        let value: serde_json::Value =
+            serde_json::from_str(payload).expect("POST /set-issuer-threshold must return JSON");
+        assert_eq!(
+            value["threshold_n"].as_u64(),
+            Some(3),
+            "POST /set-issuer-threshold must raise threshold_n to 3: {payload}"
         );
         let after = kernel
             .store()
             .load_issuer()
-            .expect("a refused n=3 must leave the issuer");
-        assert_eq!(
-            after.threshold_n.max(1),
-            1,
-            "a refused set-issuer-threshold n=3 must not change threshold_n"
-        );
+            .expect("load the issuer after n=3");
+        assert_eq!(after.threshold_n, 3);
         assert_eq!(after.signing_member_count(), before.signing_member_count());
-        assert_body_has_no_secrets(&kernel, payload, None, "a refused set-issuer-threshold n=3");
+        assert_body_has_no_secrets(&kernel, payload, None, "POST /set-issuer-threshold n=3");
+    }
+
+    #[test]
+    fn the_host_member_two_path_registers_a_third_outside_member() {
+        use crate::kernel::Kernel;
+        use tempfile::tempdir;
+
+        let store_directory = tempdir().expect("create a store directory");
+        let two_directory = tempdir().expect("create a member-two custody directory");
+        let three_directory = tempdir().expect("create a member-three custody directory");
+        let two = two_directory.path().join("member-two.secret");
+        let three = three_directory.path().join("member-three.secret");
+        let kernel = Kernel::open(store_directory.path());
+        kernel.initialize().expect("initialize the issuer");
+        let two_body = serde_json::json!({
+            "member_secret_path": two.to_string_lossy(),
+        })
+        .to_string();
+        let two_response =
+            exchange_one_http_request(&kernel, &http_post_request("/member-two", &two_body));
+        assert!(
+            two_response.starts_with("HTTP/1.1 200"),
+            "POST /member-two must register member two: {two_response}"
+        );
+        let three_body = serde_json::json!({
+            "member_secret_path": three.to_string_lossy(),
+        })
+        .to_string();
+        let response =
+            exchange_one_http_request(&kernel, &http_post_request("/member-two", &three_body));
+        assert!(
+            response.starts_with("HTTP/1.1 200"),
+            "POST /member-two must register a third outside member: {response}"
+        );
+        let payload = http_body(&response);
+        let value: serde_json::Value =
+            serde_json::from_str(payload).expect("POST /member-two third member must return JSON");
+        let public_key_hex = value["public_key_hex"]
+            .as_str()
+            .expect("POST /member-two must return public_key_hex");
+        assert!(three.exists(), "member three must be written outside");
+        assert!(
+            !kernel.store().path_is_inside_data_directory(&three),
+            "member three must live outside the data directory"
+        );
+        assert_ne!(
+            two_directory.path(),
+            three_directory.path(),
+            "member three must not use the member-two custody path"
+        );
+        let after = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer after a third member");
+        assert_eq!(
+            after.signing_member_count(),
+            3,
+            "POST /member-two must persist a third member public key"
+        );
+        assert!(
+            after
+                .trusted_signing_member_public_keys()
+                .iter()
+                .any(|key| key == public_key_hex),
+            "the returned public key must be the new third member"
+        );
+        assert_body_has_no_secrets(&kernel, payload, None, "POST /member-two third member");
     }
 
     #[test]

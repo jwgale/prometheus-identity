@@ -492,7 +492,7 @@ details.advanced > summary {
 </section>
 <details class="advanced">
 <summary>Advanced issuer writes</summary>
-<p>These writes stay on the same loopback host. After issuance threshold_n is 2 they send the issuing-store member secret path. A threshold of 3 stays parked. Init stays off this page.</p>
+<p>These writes stay on the same loopback host. After issuance threshold_n is 2 they send the issuing-store member secret path. n=3 is allowed when three members exist. Standing data-a stays 2. Init stays off this page.</p>
 <h3>Rotate the issuer</h3>
 <p>Type the word rotate to confirm. POST /rotate reuses the kernel. Secret bytes are not returned.</p>
 <label for="rotate-kill-after-seconds">Seconds until the previous key kill date</label>
@@ -522,7 +522,7 @@ details.advanced > summary {
 <p id="verify-threshold-result">The verify threshold is not changed on this page.</p>
 <pre id="verify-threshold-body">verify-threshold JSON is empty until set.</pre>
 <h3>Set issuer threshold</h3>
-<p>Type the word issuer-threshold to confirm. A threshold of 3 stays parked.</p>
+<p>Type the word issuer-threshold to confirm. n=3 is allowed when three members exist. Standing data-a stays 2.</p>
 <label for="issuer-threshold-n">threshold_n</label>
 <input id="issuer-threshold-n" name="n" type="text" value="2">
 <label for="issuer-threshold-confirm">Type the word issuer-threshold to confirm</label>

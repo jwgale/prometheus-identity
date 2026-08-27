@@ -217,7 +217,7 @@ button { margin-top: 0.85rem; padding: 0.4rem 0.8rem; }
 <h2>Register member two</h2>
 <p>Type a local outside path. POST /member-two reuses the kernel member add. The host writes the second Module-Lattice member secret only at that path.</p>
 <p>Member two is a second key for this same issuer. This is not a second store. After issuer seal this write is refused.</p>
-<p class="note">This page does not read that file in the browser. Secret bytes are not uploaded. Secret bytes are not returned. A third member stays off this page. Who holds member two in a later market stays open.</p>
+<p class="note">This page does not read that file in the browser. Secret bytes are not uploaded. Secret bytes are not returned. A third laboratory member may be added on POST /member-two with a new outside path. Who holds member two in a later market stays open.</p>
 
 <label for="member-two-secret-path">Member two secret path on this host</label>
 <input id="member-two-secret-path" name="member_secret_path" type="text">
@@ -246,7 +246,7 @@ button { margin-top: 0.85rem; padding: 0.4rem 0.8rem; }
 
 <h2>Set issuer threshold</h2>
 <p>Type the word issuer-threshold to confirm. POST /set-issuer-threshold reuses the kernel issuance-threshold write. Persist member two first.</p>
-<p class="note">This path sets threshold_n to 2 after member two exists. A threshold of 3 stays parked. Secret bytes are not returned. Init stays off this page.</p>
+<p class="note">This path sets threshold_n to 2 after member two exists. n=3 is allowed when three members exist. Standing data-a stays 2. Secret bytes are not returned. Init stays off this page.</p>
 
 <label for="issuer-threshold-n">threshold_n</label>
 <input id="issuer-threshold-n" name="n" type="text" value="2">

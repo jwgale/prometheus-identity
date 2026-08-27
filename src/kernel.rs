@@ -228,6 +228,84 @@ The check host must bind to 127.0.0.1 only. Binding to all interfaces is not per
     }
 }
 
+
+/// Laboratory report after restore. This is not a record. This is not a sixth identity record.
+/// This report must not include issuer.secret, biscuit.secret, holder secrets, or member-two secrets.
+#[derive(Debug, Clone, Serialize)]
+pub struct RestoreDiagnostics {
+    pub restore_succeeded: bool,
+    pub operation_normal: bool,
+    pub same_issuer_public_key: bool,
+    pub issuer_secret_matches_current: bool,
+    pub issuance_log_chain_ok: bool,
+    pub member_two_absent_from_store: bool,
+    pub ledger_present: bool,
+    pub instance_live_count: usize,
+    pub issuance_log_leaf_count: u64,
+}
+
+impl RestoreDiagnostics {
+    fn yes_no(value: bool) -> &'static str {
+        if value {
+            "yes"
+        } else {
+            "no"
+        }
+    }
+
+    pub fn first_failed_check(&self) -> Option<&'static str> {
+        if !self.restore_succeeded {
+            return Some("restore_succeeded");
+        }
+        if !self.same_issuer_public_key {
+            return Some("same_issuer_public_key");
+        }
+        if !self.issuer_secret_matches_current {
+            return Some("issuer_secret_matches_current");
+        }
+        if !self.issuance_log_chain_ok {
+            return Some("issuance_log_chain_ok");
+        }
+        if !self.member_two_absent_from_store {
+            return Some("member_two_absent_from_store");
+        }
+        if !self.ledger_present {
+            return Some("ledger_present");
+        }
+        if !self.operation_normal {
+            return Some("operation_normal");
+        }
+        None
+    }
+
+    /// STE100 operator view. Secrets are not printed.
+    pub fn format_human(&self) -> String {
+        format!(
+            "Prometheus restore diagnostics\n\
+This is a laboratory operator view. This is not a secrets dump. This is not a sixth identity record.\n\
+\n\
+restore_succeeded: {restore_succeeded}\n\
+operation_normal: {operation_normal}\n\
+same_issuer_public_key: {same_issuer_public_key}\n\
+issuer_secret_matches_current: {issuer_secret_matches_current}\n\
+issuance_log_chain_ok: {issuance_log_chain_ok}\n\
+member_two_absent_from_store: {member_two_absent_from_store}\n\
+ledger_present: {ledger_present}\n\
+instance_live_count: {instance_live_count}\n\
+issuance_log_leaf_count: {issuance_log_leaf_count}\n",
+            restore_succeeded = Self::yes_no(self.restore_succeeded),
+            operation_normal = Self::yes_no(self.operation_normal),
+            same_issuer_public_key = Self::yes_no(self.same_issuer_public_key),
+            issuer_secret_matches_current = Self::yes_no(self.issuer_secret_matches_current),
+            issuance_log_chain_ok = Self::yes_no(self.issuance_log_chain_ok),
+            member_two_absent_from_store = Self::yes_no(self.member_two_absent_from_store),
+            ledger_present = Self::yes_no(self.ledger_present),
+            instance_live_count = self.instance_live_count,
+            issuance_log_leaf_count = self.issuance_log_leaf_count,
+        )
+    }
+}
+
 const CHALLENGE_WINDOW_SECONDS: u64 = 60;
 
 /// Short laboratory window after rotate before the old issuer key is past its kill date.
@@ -532,7 +610,7 @@ impl Kernel {
         let member_count = issuer.signing_member_count();
         if threshold_n > member_count {
             return Err(Error::denied(format!(
-                "The threshold_n value {threshold_n} is greater than the number of trusted Module-Lattice Digital Signature Algorithm member keys ({member_count}). Add a member first. Need two members before --n 2. The check fails closed."
+                "The threshold_n value {threshold_n} is greater than the number of trusted Module-Lattice Digital Signature Algorithm member keys ({member_count}). Add a member first. Need two members before --n 2. Need three members before --n 3. The check fails closed."
             )));
         }
         if threshold_n < issuer.threshold_n {
@@ -1548,8 +1626,10 @@ impl Kernel {
 
     /// Pin a foreign previous issuer public key with its kill date.
     /// After kill_date, a wrap or act signed only by that key is refused on this store.
-    /// This is verifier state on the issuer record. This is not a sixth identity record.
-    /// This is not a public transparency log. This store does not copy issuer.secret.
+    /// After persist, this store appends a signed previous_key_accept issuance.log line.
+    /// The signed kill date is live. This is verifier state on the issuer record.
+    /// This is not a sixth identity record. This is not a public transparency log.
+    /// This store does not copy issuer.secret.
     pub fn accept_previous_issuer_key(
         &self,
         public_key_hexadecimal: &str,
@@ -1577,7 +1657,26 @@ impl Kernel {
                     kill_date,
                 });
         }
+        // Stolen Store B without member secrets must not write accepted
+        // previous-key death. Check member secrets before any write.
+        // append_log later would refuse, but save_issuer would already
+        // have written the accepted previous key.
+        self.store
+            .member_secrets_for_threshold_sign("previous key accept")?;
         self.store.save_issuer(&issuer)?;
+        self.store.append_log(&self.issuance_event(
+            "previous_key_accept",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(format!(
+                "Laboratory previous-key accept. This store pins a foreign previous issuer public key and its kill date. previous_public_key={trimmed} kill_date={}. After kill_date a wrap or act signed only by that key is refused on this store. This is verifier state. This is not a sixth identity record. This is not a public transparency log. This store does not copy issuer.secret.",
+                kill_date.to_rfc3339()
+            )),
+        ))?;
         Ok(issuer)
     }
 
@@ -4169,6 +4268,127 @@ impl Kernel {
         }
         Ok(())
     }
+
+    /// Copy issuer.secret plus the issuance ledger to a path outside this store.
+    /// Do not copy issuer-member-*.secret. This is operator disk copy, not mint.
+    /// Do not append issuance.log. This is not a sixth identity record.
+    /// Do not require issuer seal. A dead computer may be unsealed.
+    pub fn export_issuer_backup(&self, dest: &Path) -> Result<()> {
+        self.store.export_issuer_backup(dest)
+    }
+
+    /// Open the same issuer from a laboratory backup onto an empty issuing store.
+    /// The old mint must already be dead. The kernel cannot see a second machine.
+    /// Member two is not installed from the backup. This is not a sixth identity record.
+    pub fn restore_from_backup(
+        backup: impl AsRef<Path>,
+        dest_root: impl AsRef<Path>,
+    ) -> Result<Self> {
+        let backup = backup.as_ref();
+        let dest_root = dest_root.as_ref();
+        Store::restore_issuer_backup(backup, dest_root)?;
+        let kernel = Self::open(dest_root);
+        let diagnostics = kernel.restore_diagnostics(backup)?;
+        if !diagnostics.restore_succeeded || !diagnostics.operation_normal {
+            let check = diagnostics
+                .first_failed_check()
+                .unwrap_or("operation_normal");
+            return Err(Error::denied(format!(
+                "The restore diagnostics did not report restore_succeeded and operation_normal. {check} failed. The check fails closed."
+            )));
+        }
+        Ok(kernel)
+    }
+
+    /// Internal diagnostics that run after restore.
+    /// They indicate whether restore succeeded and operation returned to normal.
+    /// They do not invent issuer.secret. They do not start mint.
+    /// They do not start a second Create Agent Principal. This is not a sixth identity record.
+    pub fn restore_diagnostics(&self, backup: &Path) -> Result<RestoreDiagnostics> {
+        if !backup.exists() || !backup.is_dir() {
+            return Err(Error::denied(
+                "The backup path must be a directory that holds issuer.secret and issuer.json. The check fails closed.",
+            ));
+        }
+        let backup_issuer_path = backup.join("issuer.json");
+        if !backup_issuer_path.exists() {
+            return Err(Error::denied(
+                "The backup is missing issuer.json. Restore diagnostics cannot compare the issuer public key. The check fails closed.",
+            ));
+        }
+        let backup_issuer: Issuer = {
+            let data = std::fs::read(&backup_issuer_path)?;
+            serde_json::from_slice(&data)?
+        };
+        let dest_has_issuer = self.store.issuer_path().exists();
+        let dest_has_secret = self.store.secret_path().exists();
+        let dest_issuer = self.store.load_issuer().ok();
+        let restore_succeeded = dest_has_issuer && dest_has_secret && dest_issuer.is_some();
+        let dest_current = dest_issuer
+            .as_ref()
+            .map(|issuer| issuer.current_public_key_hex())
+            .unwrap_or_default();
+        let backup_current = backup_issuer.current_public_key_hex();
+        let same_issuer_public_key = dest_issuer.is_some() && dest_current == backup_current;
+        let issuer_secret_matches_current = match self.store.load_secret() {
+            Ok(secret) if dest_issuer.is_some() => {
+                crate::issuer_crypto::public_key_matches_secret(&dest_current, &secret)
+                    .unwrap_or(false)
+            }
+            _ => false,
+        };
+        let issuance_log_chain_ok = self.verify_log_chain().is_ok();
+        let member_two_absent_from_store = !Self::store_has_issuer_member_secret(self.store.root());
+        let mut ledger_present = dest_has_issuer
+            && self.store.log_path().exists()
+            && self.store.root().join("agent_types").is_dir()
+            && self.store.root().join("instances").is_dir()
+            && self.store.root().join("capabilities").is_dir()
+            && self.store.root().join("chains").is_dir();
+        if backup.join("holders").exists() {
+            ledger_present = ledger_present && self.store.root().join("holders").exists();
+        }
+        let (instance_live_count, issuance_log_leaf_count) = match self.store_status() {
+            Ok(status) => (status.instance_live_count, status.issuance_log_leaf_count),
+            Err(_) => (0, 0),
+        };
+        let operation_normal = restore_succeeded
+            && same_issuer_public_key
+            && issuer_secret_matches_current
+            && issuance_log_chain_ok
+            && member_two_absent_from_store
+            && ledger_present;
+        Ok(RestoreDiagnostics {
+            restore_succeeded,
+            operation_normal,
+            same_issuer_public_key,
+            issuer_secret_matches_current,
+            issuance_log_chain_ok,
+            member_two_absent_from_store,
+            ledger_present,
+            instance_live_count,
+            issuance_log_leaf_count,
+        })
+    }
+
+    fn store_has_issuer_member_secret(root: &Path) -> bool {
+        let Ok(entries) = std::fs::read_dir(root) else {
+            return false;
+        };
+        entries.filter_map(|entry| entry.ok()).any(|entry| {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            name.starts_with("issuer-member-") && name.ends_with(".secret")
+        })
+    }
+
+    /// Same as restore_from_backup. Laboratory cold restore onto an empty issuing store.
+    pub fn restore_issuer_backup(
+        backup: impl AsRef<Path>,
+        dest_root: impl AsRef<Path>,
+    ) -> Result<Self> {
+        Self::restore_from_backup(backup, dest_root)
+    }
 }
 
 /// A child act authority cannot widen the parent. Fail closed.
@@ -4251,6 +4471,19 @@ mod tests {
             .store()
             .register_extra_member_secret_path(outside.clone())
             .expect("register the outside member secret path");
+        (custody_directory, outside)
+    }
+
+    fn add_outside_member_three(kernel: &Kernel) -> (tempfile::TempDir, PathBuf) {
+        let custody_directory = tempdir().expect("create a member-three custody directory");
+        let outside = custody_directory.path().join("member-three.secret");
+        kernel
+            .add_issuer_member_with_secret_path(Some(&outside))
+            .expect("add a third member outside the data directory");
+        kernel
+            .store()
+            .register_extra_member_secret_path(outside.clone())
+            .expect("register the outside member-three secret path");
         (custody_directory, outside)
     }
 
@@ -5898,6 +6131,223 @@ mod tests {
         assert_eq!(
             after.accepted_previous_issuer_keys[0].kill_date,
             previous_kill
+        );
+    }
+
+    #[test]
+    fn verify_refuses_a_planted_later_accepted_previous_key_kill_date() {
+        let (_first_directory, first) = laboratory_kernel();
+        let start = Utc::now();
+        first.set_now_for_test(start);
+        let (instance, capability) = laboratory_capability(&first);
+        let honest = laboratory_signed_presentation(&first, &instance, &capability);
+        let old_secret = first
+            .store()
+            .load_secret()
+            .expect("load store A issuer secret");
+        let old_public_key = first_issuer_public_key(&first);
+        first
+            .rotate_issuer_key(60)
+            .expect("store A rotate must succeed");
+        let new_public_key = first_issuer_public_key(&first);
+        let rotated = first
+            .store()
+            .load_issuer()
+            .expect("load store A after rotate");
+        let previous_kill = rotated.previous_issuer_keys[0].kill_date;
+        let honest_kill = start + Duration::seconds(60);
+        assert_eq!(previous_kill, honest_kill);
+        let (_second_directory, second) = laboratory_kernel();
+        second.set_now_for_test(start);
+        second
+            .accept_issuer_public_key(&old_public_key)
+            .expect("store B pins store A old key");
+        second
+            .accept_issuer_public_key(&new_public_key)
+            .expect("store B pins store A new key");
+        second
+            .accept_previous_issuer_key(&old_public_key, previous_kill)
+            .expect("store B accepts the previous key with its kill date");
+        let log = second
+            .store()
+            .read_log()
+            .expect("read store B issuance log");
+        assert!(
+            log.iter()
+                .any(|event| event.operation == "previous_key_accept"),
+            "store B must append a signed previous_key_accept line"
+        );
+        let planted_kill = start + Duration::seconds(3600);
+        let issuer_path = second.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read store B issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse store B issuer.json");
+        planted["accepted_previous_issuer_keys"][0]["kill_date"] =
+            serde_json::Value::String(planted_kill.to_rfc3339());
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant a later accepted previous-key kill_date without save_issuer");
+        let loaded = second
+            .store()
+            .load_issuer()
+            .expect("load store B after the plant");
+        assert_eq!(
+            loaded.accepted_previous_issuer_keys[0].kill_date,
+            honest_kill,
+            "load_issuer must overlay the signed accepted previous-key kill_date"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read store B issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk_planted = still_planted
+            .get("accepted_previous_issuer_keys")
+            .and_then(|value| value.get(0))
+            .and_then(|value| value.get("kill_date"))
+            .and_then(|value| value.as_str())
+            .expect("planted later accepted previous-key kill_date must remain on disk");
+        let parsed_planted = DateTime::parse_from_rfc3339(on_disk_planted)
+            .expect("planted accepted previous-key kill_date is RFC3339")
+            .with_timezone(&Utc);
+        assert_eq!(
+            parsed_planted, planted_kill,
+            "load_issuer must not write the file back"
+        );
+        let after_kill = start + Duration::seconds(61);
+        first.set_now_for_test(after_kill);
+        second.set_now_for_test(after_kill);
+        let mut stolen = honest.clone();
+        stolen.presented_at = DateTime::<Utc>::from_timestamp(after_kill.timestamp(), 0)
+            .expect("truncate the stolen present time");
+        stolen.expires_at = stolen.presented_at + Duration::seconds(30);
+        stolen.issuer_public_key_hex = old_public_key.clone();
+        stolen.signature_hex =
+            tokens::sign_decision_receipt(&old_secret, &stolen.canonical_message())
+                .expect("sign with the stolen previous issuer secret");
+        let error = second.verify_presentation(&stolen).expect_err(
+            "store B must refuse a present signed only by a previous key past the signed kill date",
+        );
+        let text = error.to_string();
+        assert!(
+            text.contains("past its kill date") || text.contains("previous issuer key"),
+            "store B must name the previous-key kill date: {error}"
+        );
+        assert_ne!(
+            first
+                .store()
+                .load_secret()
+                .expect("load store A current secret"),
+            old_secret,
+            "issuer.secret must stay on store A and must not be copied to store B"
+        );
+    }
+
+    #[test]
+    fn verify_refuses_a_planted_drop_of_accepted_previous_issuer_keys() {
+        let (_first_directory, first) = laboratory_kernel();
+        let start = Utc::now();
+        first.set_now_for_test(start);
+        let (instance, capability) = laboratory_capability(&first);
+        let honest = laboratory_signed_presentation(&first, &instance, &capability);
+        let old_secret = first
+            .store()
+            .load_secret()
+            .expect("load store A issuer secret");
+        let old_public_key = first_issuer_public_key(&first);
+        first
+            .rotate_issuer_key(60)
+            .expect("store A rotate must succeed");
+        let new_public_key = first_issuer_public_key(&first);
+        let rotated = first
+            .store()
+            .load_issuer()
+            .expect("load store A after rotate");
+        let previous_kill = rotated.previous_issuer_keys[0].kill_date;
+        let honest_kill = start + Duration::seconds(60);
+        assert_eq!(previous_kill, honest_kill);
+        let (_second_directory, second) = laboratory_kernel();
+        second.set_now_for_test(start);
+        second
+            .accept_issuer_public_key(&old_public_key)
+            .expect("store B pins store A old key");
+        second
+            .accept_issuer_public_key(&new_public_key)
+            .expect("store B pins store A new key");
+        second
+            .accept_previous_issuer_key(&old_public_key, previous_kill)
+            .expect("store B accepts the previous key with its kill date");
+        let log = second
+            .store()
+            .read_log()
+            .expect("read store B issuance log");
+        assert!(
+            log.iter()
+                .any(|event| event.operation == "previous_key_accept"),
+            "store B must append a signed previous_key_accept line"
+        );
+        let issuer_path = second.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read store B issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse store B issuer.json");
+        planted["accepted_previous_issuer_keys"] = serde_json::Value::Array(Vec::new());
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant an empty accepted_previous_issuer_keys list without save_issuer");
+        let loaded = second
+            .store()
+            .load_issuer()
+            .expect("load store B after the plant");
+        let restored = loaded
+            .accepted_previous_issuer_keys
+            .iter()
+            .find(|previous| previous.public_key_hex.trim() == old_public_key.trim())
+            .expect("load_issuer must restore the signed accepted previous issuer key");
+        assert_eq!(
+            restored.kill_date, honest_kill,
+            "load_issuer must restore the signed accepted previous-key kill_date"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read store B issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk_after = still_planted
+            .get("accepted_previous_issuer_keys")
+            .and_then(|value| value.as_array())
+            .expect("planted accepted_previous_issuer_keys must remain on disk");
+        assert!(
+            on_disk_after.is_empty(),
+            "load_issuer must not write the file back"
+        );
+        let after_kill = start + Duration::seconds(61);
+        first.set_now_for_test(after_kill);
+        second.set_now_for_test(after_kill);
+        let mut stolen = honest.clone();
+        stolen.presented_at = DateTime::<Utc>::from_timestamp(after_kill.timestamp(), 0)
+            .expect("truncate the stolen present time");
+        stolen.expires_at = stolen.presented_at + Duration::seconds(30);
+        stolen.issuer_public_key_hex = old_public_key.clone();
+        stolen.signature_hex =
+            tokens::sign_decision_receipt(&old_secret, &stolen.canonical_message())
+                .expect("sign with the stolen previous issuer secret");
+        let error = second.verify_presentation(&stolen).expect_err(
+            "store B must refuse a present signed only by a previous key past the signed kill date after a planted drop",
+        );
+        let text = error.to_string();
+        assert!(
+            text.contains("past its kill date") || text.contains("previous issuer key"),
+            "store B must name the previous-key kill date after a planted drop: {error}"
+        );
+        assert_ne!(
+            first
+                .store()
+                .load_secret()
+                .expect("load store A current secret"),
+            old_secret,
+            "issuer.secret must stay on store A and must not be copied to store B"
         );
     }
 
@@ -13599,6 +14049,124 @@ mod tests {
     }
 
     #[test]
+    fn set_issuer_threshold_three_succeeds_after_a_third_outside_member() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (_two_custody, two) = add_outside_member_two(&kernel);
+        let (_three_custody, three) = add_outside_member_three(&kernel);
+        assert_ne!(
+            two, three,
+            "member three must not use the member-two custody path"
+        );
+        let issuer = kernel
+            .set_issuer_threshold(3)
+            .expect("set_issuer_threshold(3) must succeed after a third outside member");
+        assert_eq!(issuer.threshold_n, 3);
+        assert!(
+            issuer.signing_member_count() >= 3,
+            "n=3 must keep three trusted members"
+        );
+        let log = kernel
+            .store()
+            .read_log()
+            .expect("read the issuance log after n=3");
+        assert!(
+            log.iter()
+                .any(|event| event.operation == "issuer_threshold"
+                    && event
+                        .note
+                        .as_deref()
+                        .unwrap_or("")
+                        .contains("threshold_n to 3")),
+            "an honest n=3 raise must append a signed issuer_threshold line"
+        );
+    }
+
+    #[test]
+    fn set_issuer_threshold_three_refuses_with_only_two_members() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (_custody, _outside) = add_outside_member_two(&kernel);
+        let error = kernel
+            .set_issuer_threshold(3)
+            .expect_err("set_issuer_threshold(3) must refuse when only two members exist");
+        let text = error.to_string();
+        assert!(
+            text.contains("3") && (text.contains("member") || text.contains("greater")),
+            "n=3 with two members must name the missing third member: {error}"
+        );
+        let after = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer after a refused n=3");
+        assert_eq!(
+            after.threshold_n.max(1),
+            1,
+            "a refused set_issuer_threshold(3) must not persist n=3"
+        );
+    }
+
+    #[test]
+    fn mint_and_birth_refuse_when_only_two_secrets_are_present_and_threshold_is_three() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (_two_custody, _two) = add_outside_member_two(&kernel);
+        let (_three_custody, three) = add_outside_member_three(&kernel);
+        kernel
+            .set_issuer_threshold(3)
+            .expect("set n=3 after three members");
+        let agent_type = laboratory_agent_type(&kernel, "payments", 2);
+        std::fs::remove_file(&three).expect("remove the third member secret");
+        let birth_error = kernel
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect_err("birth must refuse when only two secrets are present and n=3");
+        let text = birth_error.to_string();
+        assert!(
+            text.contains("only") && (text.contains("secret") || text.contains("member")),
+            "unexpected two-secret n=3 birth error: {birth_error}"
+        );
+    }
+
+    #[test]
+    fn mint_with_three_member_secrets_when_threshold_is_three_succeeds_and_verifies() {
+        let (_directory, kernel) = laboratory_kernel();
+        let (_two_custody, _two) = add_outside_member_two(&kernel);
+        let (_three_custody, _three) = add_outside_member_three(&kernel);
+        kernel
+            .set_issuer_threshold(3)
+            .expect("set n=3 after three members");
+        let agent_type = laboratory_agent_type(&kernel, "payments", 2);
+        let birth = kernel
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect("birth with three member secrets must succeed");
+        let issuer = kernel.store().load_issuer().expect("load the issuer");
+        assert_eq!(issuer.threshold_n, 3);
+        assert!(
+            birth.instance.issuer_signatures.len() >= 3,
+            "n=3 birth must persist three member signatures"
+        );
+        assert!(
+            birth.capability.issuer_signatures.len() >= 3,
+            "n=3 mint must persist three member signatures"
+        );
+        tokens::require_trusted_instance_issuer_signature(&birth.instance, &issuer, Utc::now())
+            .expect("the n=3 instance record must verify");
+        tokens::require_trusted_capability_issuer_signature(&birth.capability, &issuer, Utc::now())
+            .expect("the n=3 capability record must verify");
+    }
+
+    #[test]
     fn stripping_one_of_two_signatures_refuses_evaluate() {
         let (_directory, kernel) = laboratory_kernel();
         let (_custody, _outside) = add_outside_member_two(&kernel);
@@ -14416,5 +14984,275 @@ mod tests {
             kernel.store().holder_secret_path(&instance.id).exists(),
             "birth must keep the original holder secret"
         );
+    }
+
+    #[test]
+    fn cold_restore_from_backup_returns_the_same_issuer_public_key() {
+        let (source_directory, kernel) = laboratory_kernel();
+        let agent_type = laboratory_agent_type(&kernel, "payments", 2);
+        let birth = kernel
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect("birth_write on the source issuer");
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        kernel
+            .export_issuer_backup(&backup)
+            .expect("export a laboratory backup outside the data directory");
+        let dest_directory = tempdir().expect("create a restore destination");
+        let dest_root = dest_directory.path().join("restored");
+        let restored = Kernel::restore_from_backup(&backup, &dest_root)
+            .expect("restore onto an empty issuing store");
+        let source_issuer = kernel.store().load_issuer().expect("load the source issuer");
+        let restored_issuer = restored
+            .store()
+            .load_issuer()
+            .expect("load the restored issuer");
+        assert_eq!(
+            restored_issuer.current_public_key_hex(),
+            source_issuer.current_public_key_hex()
+        );
+        restored
+            .store()
+            .load_instance(&birth.instance.id)
+            .expect("the born instance must load after restore");
+        assert!(
+            source_directory.path().join("issuer.json").exists(),
+            "the source kernel still exists"
+        );
+        kernel
+            .store()
+            .load_issuer()
+            .expect("the source issuer still loads");
+    }
+
+    #[test]
+    fn issuer_backup_refuses_a_path_inside_the_data_directory() {
+        let (_directory, kernel) = laboratory_kernel();
+        let inside = kernel.store().root().join("backup");
+        let error = kernel
+            .export_issuer_backup(&inside)
+            .expect_err("a backup path inside the data directory must be refused");
+        assert!(
+            error.to_string().contains("data directory"),
+            "unexpected inside-data-directory backup error: {error}"
+        );
+    }
+
+    #[test]
+    fn issuer_backup_does_not_copy_member_two() {
+        let (_source_directory, kernel) = laboratory_kernel();
+        let (custody_directory, outside) = add_outside_member_two(&kernel);
+        kernel
+            .set_issuer_threshold(2)
+            .expect("set n=2 with member two in hand");
+        let agent_type = laboratory_agent_type(&kernel, "payments", 2);
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        kernel
+            .export_issuer_backup(&backup)
+            .expect("export a laboratory backup");
+        let stray_backup: Vec<_> = std::fs::read_dir(&backup)
+            .expect("read the backup")
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("issuer-member-")
+            })
+            .collect();
+        assert!(
+            stray_backup.is_empty(),
+            "the backup must not include issuer-member secrets"
+        );
+        let dest_directory = tempdir().expect("create a restore destination");
+        let dest_root = dest_directory.path().join("restored");
+        let restored = Kernel::restore_from_backup(&backup, &dest_root)
+            .expect("restore onto an empty issuing store");
+        let stray_dest: Vec<_> = std::fs::read_dir(&dest_root)
+            .expect("read the restored store")
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("issuer-member-")
+            })
+            .collect();
+        assert!(
+            stray_dest.is_empty(),
+            "restore must not install member two"
+        );
+        let error = restored
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect_err("birth must refuse on the restored n=2 store without member two");
+        let text = error.to_string();
+        assert!(
+            text.contains("only") && (text.contains("secret") || text.contains("member")),
+            "unexpected missing-custody birth error: {error}"
+        );
+        restored
+            .store()
+            .register_extra_member_secret_path(outside.clone())
+            .expect("register the same outside member-two file");
+        restored
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect("birth must succeed after the outside member-two path is registered");
+        let _keep_custody = custody_directory;
+    }
+
+    #[test]
+    fn issuer_restore_refuses_a_destination_that_already_has_an_issuer() {
+        let (_source_directory, kernel) = laboratory_kernel();
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        kernel
+            .export_issuer_backup(&backup)
+            .expect("export a laboratory backup");
+        let (live_directory, _live) = laboratory_kernel();
+        let error = match Kernel::restore_from_backup(&backup, live_directory.path()) {
+            Ok(_) => panic!("restore onto a store that already has an issuer must be refused"),
+            Err(error) => error,
+        };
+        assert!(
+            error.to_string().contains("already has an issuer")
+                || error.to_string().contains("already"),
+            "unexpected dest-with-issuer restore error: {error}"
+        );
+    }
+
+    #[test]
+    fn issuer_restore_refuses_a_backup_that_is_missing_issuer_secret() {
+        let (_source_directory, kernel) = laboratory_kernel();
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        kernel
+            .export_issuer_backup(&backup)
+            .expect("export a laboratory backup");
+        std::fs::remove_file(backup.join("issuer.secret"))
+            .expect("remove issuer.secret from the backup");
+        let dest_directory = tempdir().expect("create a restore destination");
+        let dest_root = dest_directory.path().join("restored");
+        let error = match Kernel::restore_from_backup(&backup, &dest_root) {
+            Ok(_) => panic!("a backup missing issuer.secret must be refused"),
+            Err(error) => error,
+        };
+        assert!(
+            error.to_string().contains("issuer.secret"),
+            "unexpected missing-secret restore error: {error}"
+        );
+    }
+
+    #[test]
+    fn restore_diagnostics_report_operation_normal_after_honest_cold_restore() {
+        let (_source_directory, kernel) = laboratory_kernel();
+        let agent_type = laboratory_agent_type(&kernel, "payments", 2);
+        let _birth = kernel
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect("birth_write on the source issuer");
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        kernel
+            .export_issuer_backup(&backup)
+            .expect("export a laboratory backup outside the data directory");
+        let dest_directory = tempdir().expect("create a restore destination");
+        let dest_root = dest_directory.path().join("restored");
+        let restored = Kernel::restore_from_backup(&backup, &dest_root)
+            .expect("restore onto an empty issuing store");
+        let diagnostics = restored
+            .restore_diagnostics(&backup)
+            .expect("restore diagnostics after honest restore");
+        assert!(
+            diagnostics.restore_succeeded && diagnostics.operation_normal,
+            "honest restore must report restore_succeeded and operation_normal"
+        );
+        assert!(
+            diagnostics.same_issuer_public_key,
+            "dest current key must equal the backup issuer.json current key"
+        );
+        assert!(
+            diagnostics.issuer_secret_matches_current,
+            "dest issuer.secret must match the current public key"
+        );
+        assert!(
+            diagnostics.issuance_log_chain_ok,
+            "dest issuance log chain must verify"
+        );
+        assert!(
+            diagnostics.member_two_absent_from_store,
+            "dest must not hold issuer-member secrets"
+        );
+        let stray_dest: Vec<_> = std::fs::read_dir(&dest_root)
+            .expect("read the restored store")
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("issuer-member-")
+            })
+            .collect();
+        assert!(
+            stray_dest.is_empty(),
+            "dest must not include issuer-member-*.secret"
+        );
+    }
+
+    #[test]
+    fn restore_diagnostics_refuse_when_restored_secret_does_not_match() {
+        let (_source_directory, kernel) = laboratory_kernel();
+        let backup_directory = tempdir().expect("create a backup directory");
+        let backup = backup_directory.path().join("issuer-backup");
+        kernel
+            .export_issuer_backup(&backup)
+            .expect("export a laboratory backup");
+        let dest_directory = tempdir().expect("create a restore destination");
+        let dest_root = dest_directory.path().join("restored");
+        let restored = Kernel::restore_from_backup(&backup, &dest_root)
+            .expect("restore onto an empty issuing store");
+        let stranger = crate::issuer_crypto::generate_module_lattice_key_pair()
+            .expect("generate a different module-lattice secret");
+        std::fs::write(
+            restored.store().secret_path(),
+            stranger.secret_key_hexadecimal,
+        )
+        .expect("overwrite dest issuer.secret");
+        match restored.restore_diagnostics(&backup) {
+            Ok(diagnostics) => {
+                assert!(
+                    !diagnostics.restore_succeeded || !diagnostics.operation_normal,
+                    "a dest issuer.secret that does not match the current public key must not report operation_normal"
+                );
+            }
+            Err(_) => {}
+        }
     }
 }
