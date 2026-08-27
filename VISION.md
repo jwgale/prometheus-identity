@@ -533,6 +533,30 @@ Kernel set_issuer_threshold writes issuer.json and then appends a signed issuanc
 
 Host POST /member-two already required a typed outside path. Kernel add_issuer_member and add_issuer_member_with_secret_path(None) still wrote issuer-member-*.secret under the data directory. The command line could omit --secret-path and skip the host. The kernel now refuses a missing member-two secret path. A path inside the data directory was already refused. Stolen store files must not include member two. Default in-directory member files still load without --member-secret. This is not n=3. This is not restore. This is not a second identity kernel. The laboratory test count at this close is 523 tests.
 
+### Rung 107 — planted lower threshold_n in issuer.json refused (closed, 26 August 2026)
+
+issuer.json is unsigned. load_issuer treated that file threshold_n as live. issuance.log already stores the signed n on each line. A stolen n=2 store plus a planted threshold_n of 1 let mint, birth, and save-sign use only issuer.secret. Member two was not needed. The kernel now treats the highest signed log n as live when the file n is lower. A planted lower n is not live. save_issuer refuses a persist below that signed n. This is not a sixth identity record. This is not restore. This is not n=3. This is not Sanctum. The laboratory test count at this close is 524 tests.
+
+### Rung 108 — planted cleared kill_date in issuer.json refused (closed, 26 August 2026)
+
+issuer.json is unsigned. load_issuer treated a missing kill_date as live. A signed issuer_seal issuance.log line already records the seal. A stolen sealed store plus a planted cleared kill_date let mint and birth treat the issuer as live. The kernel now treats a signed issuer_seal line as live when the file kill_date is missing. A planted clear is not live. save_issuer refuses a persist that clears kill_date after that signed line. This is not a sixth identity record. This is not restore. This is not Sanctum. The laboratory test count at this close is 525 tests.
+
+### Rung 109 — planted later kill_date in issuer.json refused (closed, 26 August 2026)
+
+issuer.json is unsigned. load_issuer treated a later file kill_date as live. A signed issuer_seal issuance.log note already stores issuer.kill_date. A stolen sealed store plus a planted later kill_date let mint and birth continue after the signed death. The kernel now treats the earliest signed issuer.kill_date in those notes as live when the file date is later. A planted later date is not live. save_issuer freezes against that signed date. This is not a sixth identity record. This is not restore. This is not Sanctum. The laboratory test count at this close is 526 tests.
+
+### Rung 110 — planted later previous-key kill_date in issuer.json refused (closed, 26 August 2026)
+
+issuer.json is unsigned. load_issuer treated a later previous_issuer_keys kill_date as live. A signed issuer_rotate issuance.log note already stores previous_public_key and kill_date. A stolen rotated store plus a planted later previous-key kill_date let a stolen old key stay trusted after the signed death. The kernel now treats the earliest signed previous-key kill_date in those notes as live when the file date is later. A planted later date is not live. save_issuer freezes against that signed date. This is not a sixth identity record. This is not restore. This is not Sanctum. The laboratory test count at this close is 527 tests.
+
+### Rung 111 — planted lower verify_threshold_n in issuer.json refused (closed, 26 August 2026)
+
+issuer.json is unsigned. load_issuer treated that file verify_threshold_n as live. A signed issuer_verify_threshold issuance.log note already stores the raised n. A stolen store plus a planted verify_threshold_n of 1 let a one-signature foreign act verify. The kernel now treats the highest signed verify_threshold_n in those notes as live when the file n is lower. A planted lower n is not live. save_issuer refuses a persist below that signed n. This is not issuance threshold_n. This is not a sixth identity record. This is not restore. This is not Sanctum. The laboratory test count at this close is 528 tests.
+
+### Rung 112 — planted drop of previous_issuer_keys in issuer.json refused (closed, 26 August 2026)
+
+issuer.json is unsigned. load_issuer overlaid a later previous-key kill_date only when that hex was still in the file. A signed issuer_rotate issuance.log note already stores previous_public_key and kill_date. A stolen rotated store plus a planted empty previous_issuer_keys list let a stolen old key stay trusted after the signed death. The kernel now restores a missing signed previous key in memory when that rotate note exists. A planted drop is not live. save_issuer refuses a persist that omits a signed previous key. This is not a sixth identity record. This is not restore. This is not Sanctum. The laboratory test count at this close is 529 tests.
+
 ### GitHub publication (started and landed, 23 August 2026)
 
 The laboratory source and public see-walk artifacts are in the public GitHub repository https://github.com/jwgale/prometheus-identity. The repository name is the Cargo package name prometheus_identity. That name is not a market name. This is not Sanctum. This is not a Cyera product. issuer.secret, biscuit secrets, holder secrets, member-two secrets, data directories, and prometheus-lab-vpc are not in that repository. GitHub Actions are not added.

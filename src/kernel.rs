@@ -5725,7 +5725,9 @@ mod tests {
         assert!(
             text.contains("hash chain is broken")
                 || text.contains("line_hash")
-                || text.contains("previous_line_hash"),
+                || text.contains("previous_line_hash")
+                || text.contains("JSON")
+                || text.contains("missing field"),
             "unexpected alter-field error: {error}"
         );
     }
@@ -6406,6 +6408,228 @@ mod tests {
             text.contains("past its kill date") || text.contains("stolen old secret"),
             "unexpected forged-old-key error: {error}"
         );
+    }
+
+    #[test]
+    fn verify_refuses_a_planted_later_previous_key_kill_date_in_issuer_json() {
+        let (_directory, kernel) = laboratory_kernel();
+        let start = Utc::now();
+        kernel.set_now_for_test(start);
+        let receipt = laboratory_check_receipt(&kernel);
+        let old_secret = kernel.store().load_secret().expect("load the old secret");
+        let old_public_key = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer before rotate")
+            .current_public_key_hex();
+        kernel.rotate_issuer_key(60).expect("rotate must succeed");
+        let honest_kill = start + Duration::seconds(60);
+        let planted_kill = start + Duration::seconds(3600);
+        let issuer_path = kernel.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse issuer.json");
+        let on_disk_honest = planted
+            .get("previous_issuer_keys")
+            .and_then(|value| value.get(0))
+            .and_then(|value| value.get("kill_date"))
+            .and_then(|value| value.as_str())
+            .expect("honest rotate must write previous_issuer_keys kill_date");
+        let parsed_honest = DateTime::parse_from_rfc3339(on_disk_honest)
+            .expect("honest previous-key kill_date is RFC3339")
+            .with_timezone(&Utc);
+        assert_eq!(
+            parsed_honest, honest_kill,
+            "on-disk previous-key kill_date after rotate is start plus 60 seconds"
+        );
+        planted["previous_issuer_keys"][0]["kill_date"] =
+            serde_json::Value::String(planted_kill.to_rfc3339());
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant a later previous-key kill_date without save_issuer");
+        let loaded = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer after the plant");
+        assert_eq!(
+            loaded.previous_issuer_keys[0].kill_date,
+            honest_kill,
+            "load_issuer must overlay the signed previous-key kill_date"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk_planted = still_planted
+            .get("previous_issuer_keys")
+            .and_then(|value| value.get(0))
+            .and_then(|value| value.get("kill_date"))
+            .and_then(|value| value.as_str())
+            .expect("planted later previous-key kill_date must remain on disk");
+        let parsed_planted = DateTime::parse_from_rfc3339(on_disk_planted)
+            .expect("planted previous-key kill_date is RFC3339")
+            .with_timezone(&Utc);
+        assert_eq!(
+            parsed_planted, planted_kill,
+            "load_issuer must not write the file back"
+        );
+        assert!(
+            !loaded.is_previous_issuer_key_past_kill_date(
+                &old_public_key,
+                start + Duration::seconds(30)
+            ),
+            "honest remaining life before the signed previous-key kill_date must stay live"
+        );
+        kernel.set_now_for_test(start + Duration::seconds(61));
+        let after = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer after the signed previous-key kill_date");
+        assert!(
+            after.is_previous_issuer_key_past_kill_date(
+                &old_public_key,
+                start + Duration::seconds(61)
+            ),
+            "the signed previous-key kill_date must be live after T1"
+        );
+        let mut forged = receipt.clone();
+        forged.issuance_log_line =
+            r#"{"operation":"forged","note":"not in the issuance log"}"#.to_string();
+        forged.signature = tokens::sign_decision_receipt(&old_secret, &forged.canonical_message())
+            .expect("sign a forged receipt with the stolen old secret");
+        let error = kernel.verify_decision_receipt(&forged).expect_err(
+            "a forged-not-in-log receipt signed with a previous key past kill_date must fail",
+        );
+        let text = error.to_string();
+        assert!(
+            text.contains("past its kill date")
+                || text.contains("stolen old secret")
+                || text.contains("previous"),
+            "unexpected forged-old-key error: {error}"
+        );
+        let mut postponed = kernel
+            .store()
+            .load_issuer()
+            .expect("load the overlaid issuer for save refuse");
+        postponed.previous_issuer_keys[0].kill_date = planted_kill;
+        let save_error = kernel.store().save_issuer(&postponed).expect_err(
+            "save_issuer must refuse a persist that postpones past the signed previous-key kill_date",
+        );
+        assert_issuer_previous_key_raise_refused(&save_error);
+    }
+
+    #[test]
+    fn verify_refuses_a_planted_drop_of_previous_issuer_keys_in_issuer_json() {
+        let (_directory, kernel) = laboratory_kernel();
+        let start = Utc::now();
+        kernel.set_now_for_test(start);
+        let receipt = laboratory_check_receipt(&kernel);
+        let old_secret = kernel.store().load_secret().expect("load the old secret");
+        let old_public_key = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer before rotate")
+            .current_public_key_hex();
+        kernel.rotate_issuer_key(60).expect("rotate must succeed");
+        let honest_kill = start + Duration::seconds(60);
+        let issuer_path = kernel.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse issuer.json");
+        let on_disk_list = planted
+            .get("previous_issuer_keys")
+            .and_then(|value| value.as_array())
+            .expect("honest rotate must write previous_issuer_keys");
+        assert_eq!(
+            on_disk_list.len(),
+            1,
+            "honest rotate must persist one previous issuer key"
+        );
+        let on_disk_hex = on_disk_list[0]
+            .get("public_key_hex")
+            .and_then(|value| value.as_str())
+            .expect("honest rotate must write previous_issuer_keys public_key_hex");
+        assert_eq!(
+            on_disk_hex.trim(),
+            old_public_key.trim(),
+            "on-disk previous issuer key after rotate is the old current public key"
+        );
+        planted["previous_issuer_keys"] = serde_json::Value::Array(Vec::new());
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant an empty previous_issuer_keys list without save_issuer");
+        let loaded = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer after the plant");
+        let restored = loaded
+            .previous_issuer_keys
+            .iter()
+            .find(|previous| previous.public_key_hex.trim() == old_public_key.trim())
+            .expect("load_issuer must restore the signed previous issuer key");
+        assert_eq!(
+            restored.kill_date, honest_kill,
+            "load_issuer must restore the signed previous-key kill_date"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk_after = still_planted
+            .get("previous_issuer_keys")
+            .and_then(|value| value.as_array())
+            .expect("planted previous_issuer_keys must remain on disk");
+        assert!(
+            on_disk_after.is_empty(),
+            "load_issuer must not write the file back"
+        );
+        assert!(
+            !loaded.is_previous_issuer_key_past_kill_date(
+                &old_public_key,
+                start + Duration::seconds(30)
+            ),
+            "honest remaining life before the signed previous-key kill_date must stay live"
+        );
+        kernel.set_now_for_test(start + Duration::seconds(61));
+        let after = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer after the signed previous-key kill_date");
+        assert!(
+            after.is_previous_issuer_key_past_kill_date(
+                &old_public_key,
+                start + Duration::seconds(61)
+            ),
+            "the signed previous-key kill_date must be live after T1"
+        );
+        let mut forged = receipt.clone();
+        forged.issuance_log_line =
+            r#"{"operation":"forged","note":"not in the issuance log"}"#.to_string();
+        forged.signature = tokens::sign_decision_receipt(&old_secret, &forged.canonical_message())
+            .expect("sign a forged receipt with the stolen old secret");
+        let error = kernel.verify_decision_receipt(&forged).expect_err(
+            "a forged-not-in-log receipt signed with a previous key past kill_date must fail",
+        );
+        let text = error.to_string();
+        assert!(
+            text.contains("past its kill date")
+                || text.contains("stolen old secret")
+                || text.contains("previous"),
+            "unexpected forged-old-key error: {error}"
+        );
+        let mut dropped = kernel
+            .store()
+            .load_issuer()
+            .expect("load the overlaid issuer for save refuse");
+        dropped.previous_issuer_keys.clear();
+        let save_error = kernel.store().save_issuer(&dropped).expect_err(
+            "save_issuer must refuse a persist that omits a signed previous issuer key",
+        );
+        assert_issuer_previous_key_raise_refused(&save_error);
     }
 
     #[test]
@@ -7902,6 +8126,171 @@ mod tests {
         );
     }
 
+    #[test]
+    fn mint_and_birth_refuse_a_planted_cleared_kill_date_in_issuer_json() {
+        let (_directory, kernel) = laboratory_kernel();
+        let start = Utc::now();
+        kernel.set_now_for_test(start);
+        let (instance, _capability) = laboratory_capability(&kernel);
+        kernel
+            .seal_issuer(60)
+            .expect("seal 60 seconds must succeed");
+        let issuer_path = kernel.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse issuer.json");
+        assert!(
+            planted
+                .get("kill_date")
+                .and_then(|value| value.as_str())
+                .is_some(),
+            "honest persist must write kill_date"
+        );
+        planted["kill_date"] = serde_json::Value::Null;
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant a cleared kill_date without save_issuer");
+        let loaded = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer after the plant");
+        assert!(
+            loaded.kill_date.is_some(),
+            "load_issuer must overlay the signed issuer_seal timestamp"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk_kill = still_planted.get("kill_date");
+        assert!(
+            on_disk_kill.is_none() || on_disk_kill == Some(&serde_json::Value::Null),
+            "load_issuer must not write the file back"
+        );
+        kernel.set_now_for_test(start + Duration::seconds(30));
+        let mint_error = kernel
+            .mint_capability(&instance.id, "read", "payments", None)
+            .expect_err(
+                "mint must refuse a planted cleared kill_date inside honest remaining life",
+            );
+        assert_issuer_seal_refused(&mint_error);
+        let birth_error = kernel
+            .birth_write(
+                &instance.agent_type_id,
+                "planted-clear".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect_err(
+                "birth must refuse a planted cleared kill_date inside honest remaining life",
+            );
+        assert_issuer_seal_refused(&birth_error);
+        let mut cleared = kernel
+            .store()
+            .load_issuer()
+            .expect("load the overlaid issuer for save refuse");
+        cleared.kill_date = None;
+        let save_error = kernel
+            .store()
+            .save_issuer(&cleared)
+            .expect_err("save_issuer must refuse a persist that clears kill_date after issuer_seal");
+        assert_issuer_seal_persist_postpone_refused(&save_error);
+    }
+
+    #[test]
+    fn mint_and_birth_refuse_a_planted_later_kill_date_in_issuer_json() {
+        let (_directory, kernel) = laboratory_kernel();
+        let start = Utc::now();
+        kernel.set_now_for_test(start);
+        let (instance, _capability) = laboratory_capability(&kernel);
+        kernel
+            .seal_issuer(60)
+            .expect("seal 60 seconds must succeed");
+        let honest_kill = start + Duration::seconds(60);
+        let planted_kill = start + Duration::seconds(3600);
+        let issuer_path = kernel.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse issuer.json");
+        let on_disk_honest = planted
+            .get("kill_date")
+            .and_then(|value| value.as_str())
+            .expect("honest persist must write kill_date");
+        let parsed_honest = DateTime::parse_from_rfc3339(on_disk_honest)
+            .expect("honest kill_date is RFC3339")
+            .with_timezone(&Utc);
+        assert_eq!(
+            parsed_honest, honest_kill,
+            "on-disk kill_date after seal is start plus 60 seconds"
+        );
+        planted["kill_date"] = serde_json::Value::String(planted_kill.to_rfc3339());
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant a later kill_date without save_issuer");
+        let loaded = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer after the plant");
+        assert_eq!(
+            loaded.kill_date,
+            Some(honest_kill),
+            "load_issuer must overlay the signed issuer.kill_date"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        let on_disk_planted = still_planted
+            .get("kill_date")
+            .and_then(|value| value.as_str())
+            .expect("planted later kill_date must remain on disk");
+        let parsed_planted = DateTime::parse_from_rfc3339(on_disk_planted)
+            .expect("planted kill_date is RFC3339")
+            .with_timezone(&Utc);
+        assert_eq!(
+            parsed_planted, planted_kill,
+            "load_issuer must not write the file back"
+        );
+        kernel.set_now_for_test(start + Duration::seconds(30));
+        kernel
+            .mint_capability(&instance.id, "read", "payments", None)
+            .expect("mint must work before the signed issuer seal kill_date");
+        kernel.set_now_for_test(start + Duration::seconds(60));
+        let mint_error = kernel
+            .mint_capability(&instance.id, "read", "payments", None)
+            .expect_err("mint must refuse at the signed kill_date");
+        assert_issuer_seal_refused(&mint_error);
+        let birth_error = kernel
+            .birth_write(
+                &instance.agent_type_id,
+                "planted-later".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect_err("birth must refuse at the signed kill_date");
+        assert_issuer_seal_refused(&birth_error);
+        let mut postponed = kernel
+            .store()
+            .load_issuer()
+            .expect("load the overlaid issuer for save refuse");
+        postponed.kill_date = Some(planted_kill);
+        let save_error = kernel
+            .store()
+            .save_issuer(&postponed)
+            .expect_err(
+                "save_issuer must refuse a persist that postpones past the signed kill_date",
+            );
+        assert_issuer_seal_persist_postpone_refused(&save_error);
+    }
+
     fn laboratory_allowed_check_receipt(kernel: &Kernel) -> DecisionReceipt {
         let birth = laboratory_birth(kernel);
         let allowed = kernel
@@ -8113,6 +8502,91 @@ mod tests {
         assert!(
             text.contains("one signature") || text.contains("verify_threshold_n"),
             "unexpected single-signature verify-threshold error: {error}"
+        );
+    }
+
+    #[test]
+    fn foreign_act_refuses_a_planted_lower_verify_threshold_n_in_issuer_json() {
+        let (first_directory, first) = laboratory_kernel();
+        let receipt = laboratory_allowed_check_receipt(&first);
+        let bundle_directory = first_directory.path().join("act-bundle");
+        first
+            .export_act_bundle(&receipt, &bundle_directory)
+            .expect("export a one-member act bundle");
+        let (_second_directory, second) = laboratory_kernel();
+        second
+            .accept_issuer_public_key(&first_issuer_public_key(&first))
+            .expect("accept the first public key");
+        second
+            .set_verify_threshold(2)
+            .expect("raise verify_threshold_n to 2");
+        let issuer_path = second.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse issuer.json");
+        assert_eq!(
+            planted
+                .get("verify_threshold_n")
+                .and_then(|value| value.as_u64()),
+            Some(2),
+            "honest persist must write verify_threshold_n 2"
+        );
+        planted["verify_threshold_n"] = serde_json::json!(1);
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant a lower verify_threshold_n without save_issuer");
+        let loaded = second
+            .store()
+            .load_issuer()
+            .expect("load the issuer after the plant");
+        assert_eq!(
+            loaded.verify_threshold_n, 2,
+            "load_issuer must overlay the signed log n"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        assert_eq!(
+            still_planted
+                .get("verify_threshold_n")
+                .and_then(|value| value.as_u64()),
+            Some(1),
+            "load_issuer must not write the file back"
+        );
+        let error = second
+            .accept_act_bundle(&bundle_directory)
+            .expect_err(
+                "a one-signature bundle must refuse when the signed verify_threshold_n is 2",
+            );
+        let text = error.to_string();
+        assert!(
+            text.contains("one signature") || text.contains("verify_threshold_n"),
+            "unexpected planted-verify-threshold error: {error}"
+        );
+        let mut lowered = second
+            .store()
+            .load_issuer()
+            .expect("load the overlaid issuer for save refuse");
+        lowered.verify_threshold_n = 1;
+        let save_error = second
+            .store()
+            .save_issuer(&lowered)
+            .expect_err("save_issuer must refuse persist below the signed log n");
+        let save_text = save_error.to_string();
+        assert!(
+            save_text.contains("lowered") || save_text.contains("cannot be lowered"),
+            "unexpected planted-n save_issuer error: {save_error}"
+        );
+        let set_error = second
+            .set_verify_threshold(1)
+            .expect_err("set_verify_threshold must refuse lowering after a plant");
+        let set_text = set_error.to_string();
+        assert!(
+            set_text.contains("lowered") || set_text.contains("cannot be lowered"),
+            "unexpected planted-n set_verify_threshold error: {set_error}"
         );
     }
 
@@ -13007,6 +13481,89 @@ mod tests {
             "unexpected one-secret n=2 birth error: {birth_error}"
         );
         let _ = (directory, error);
+    }
+
+    #[test]
+    fn mint_and_birth_refuse_a_planted_lower_threshold_n_in_issuer_json() {
+        let (directory, kernel) = laboratory_kernel();
+        let (_custody, outside) = add_outside_member_two(&kernel);
+        kernel.set_issuer_threshold(2).expect("set n=2");
+        let issuer_path = kernel.store().issuer_path();
+        let raw = std::fs::read_to_string(&issuer_path).expect("read issuer.json");
+        let mut planted: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse issuer.json");
+        assert_eq!(
+            planted.get("threshold_n").and_then(|value| value.as_u64()),
+            Some(2),
+            "honest persist must write threshold_n 2"
+        );
+        let agent_type = laboratory_agent_type(&kernel, "payments", 2);
+        planted["threshold_n"] = serde_json::json!(1);
+        std::fs::write(
+            &issuer_path,
+            serde_json::to_string_pretty(&planted).expect("serialize planted issuer.json"),
+        )
+        .expect("plant a lower threshold_n without save_issuer");
+        std::fs::remove_file(&outside).expect("remove the additional member secret");
+        let loaded = kernel
+            .store()
+            .load_issuer()
+            .expect("load the issuer after the plant");
+        assert_eq!(
+            loaded.threshold_n, 2,
+            "load_issuer must overlay the signed log n"
+        );
+        let still_planted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&issuer_path).expect("re-read issuer.json"),
+        )
+        .expect("parse planted issuer.json");
+        assert_eq!(
+            still_planted
+                .get("threshold_n")
+                .and_then(|value| value.as_u64()),
+            Some(1),
+            "load_issuer must not write the file back"
+        );
+        let birth_error = kernel
+            .birth_write(
+                &agent_type.id,
+                "laboratory".to_string(),
+                BTreeMap::new(),
+                "read",
+                "payments",
+                None,
+            )
+            .expect_err(
+                "birth must refuse a planted lower threshold_n when only one secret is present",
+            );
+        let text = birth_error.to_string();
+        assert!(
+            text.contains("only") && (text.contains("secret") || text.contains("member")),
+            "unexpected planted-n birth error: {birth_error}"
+        );
+        let lower_error = kernel
+            .set_issuer_threshold(1)
+            .expect_err("set_issuer_threshold must refuse lowering after a plant");
+        let lower_text = lower_error.to_string();
+        assert!(
+            lower_text.contains("lowered") || lower_text.contains("cannot be lowered"),
+            "unexpected planted-n lower error: {lower_error}"
+        );
+        let mut lowered = kernel
+            .store()
+            .load_issuer()
+            .expect("load the overlaid issuer for save refuse");
+        lowered.threshold_n = 1;
+        let save_error = kernel
+            .store()
+            .save_issuer(&lowered)
+            .expect_err("save_issuer must refuse persist below the signed log n");
+        let save_text = save_error.to_string();
+        assert!(
+            save_text.contains("lowered") || save_text.contains("cannot be lowered"),
+            "unexpected planted-n save_issuer error: {save_error}"
+        );
+        let _ = directory;
     }
 
     #[test]

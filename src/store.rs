@@ -4,10 +4,10 @@ use crate::records::{
     audience_within_authorization_limit, capability_issuer_signature_message,
     chain_issuer_signature_message, instance_issuer_signature_message, is_narrower_or_equal,
     issuance_log_line_issuer_signature_message, AgentType, Capability, Chain, Instance,
-    InstanceStatus, Issuer, LogEvent,
+    InstanceStatus, Issuer, LogEvent, PreviousIssuerKey,
 };
 use crate::tokens;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fs::{self, File, OpenOptions};
@@ -283,8 +283,11 @@ impl Store {
     /// new secret first). A later persist must not grow public_keys with a key
     /// that is not the current key. A later persist must not remove a previous
     /// issuer key, postpone a previous-key kill_date, or add a previous key that
-    /// was never this store current key. Those writes would make verify accept
-    /// a foreign or stolen key.
+    /// was never this store current key. A later persist must not omit a
+    /// previous key that a signed issuer_rotate note already records. Honest
+    /// rotate writes the previous key before that signed line exists. That first
+    /// write is not an omit. Those writes would make verify accept a foreign
+    /// or stolen key.
     ///
     /// Emptying accepted_issuer_public_keys is not allow-all: verify still uses
     /// the current key and refuses an empty combined list. threshold_n cannot
@@ -294,7 +297,20 @@ impl Store {
         let path = self.issuer_path();
         if path.exists() {
             let stored: Issuer = self.read_json(&path)?;
-            if let Some(stored_kill_date) = stored.kill_date {
+            // Freeze is the earlier of the unsigned file kill_date and the
+            // earliest signed issuer.kill_date on an issuer_seal note.
+            // A planted later file date must not become the freeze.
+            // A missing file date still freezes on the signed date, or else
+            // the first issuer_seal timestamp.
+            let file_date = stored.kill_date;
+            let signed_date = self.signed_issuer_seal_kill_date()?;
+            let stored_kill_date = match (file_date, signed_date) {
+                (Some(file), Some(signed)) => Some(file.min(signed)),
+                (Some(file), None) => Some(file),
+                (None, Some(signed)) => Some(signed),
+                (None, None) => self.earliest_issuer_seal_timestamp()?,
+            };
+            if let Some(stored_kill_date) = stored_kill_date {
                 match issuer.kill_date {
                     None => {
                         return Err(Error::denied(
@@ -408,6 +424,14 @@ impl Store {
 
     /// previous_issuer_keys cannot lose a stored key, cannot postpone a stored kill_date,
     /// and cannot gain a key that was never this store current key.
+    /// Freeze is the earlier of the unsigned file kill_date and the earliest
+    /// signed kill_date on an issuer_rotate note for that public key.
+    /// A planted later file date must not become the freeze.
+    /// A persist must not omit a previous key that a signed issuer_rotate
+    /// note already records. Freeze against that signed list, not only the file.
+    /// A planted empty list must not become the freeze.
+    /// Honest rotate writes the previous key before the signed line exists.
+    /// That first write is not an omit.
     /// Removing a previous key would treat a stolen old key as never-previous.
     /// Postponing a previous-key kill_date would let that stolen key sign after death.
     fn require_issuer_previous_keys_not_raised(
@@ -416,6 +440,7 @@ impl Store {
         issuer: &Issuer,
     ) -> Result<()> {
         let stored_current = stored.current_public_key_hex();
+        let signed_previous = self.signed_previous_issuer_key_kill_dates()?;
         for stored_previous in &stored.previous_issuer_keys {
             let stored_hex = stored_previous.public_key_hex.trim();
             let matching: Vec<_> = issuer
@@ -428,7 +453,42 @@ impl Store {
                     "A previous issuer key cannot be removed after rotate. A later write that drops a previous key is refused. Removing the key would treat a stolen old key as never-previous. That is a golden-ticket-class raise. Verify must not accept a stolen key after kill_date. This is not a sixth identity record.",
                 ));
             }
-            if matching[0].kill_date > stored_previous.kill_date {
+            let freeze = signed_previous
+                .iter()
+                .find(|(key, _)| key.trim() == stored_hex)
+                .map(|(_, signed)| stored_previous.kill_date.min(*signed))
+                .unwrap_or(stored_previous.kill_date);
+            if matching[0].kill_date > freeze {
+                return Err(Error::denied(
+                    "A previous issuer key kill_date is frozen after rotate. A later write that moves that kill_date later is refused. Postponing a previous-key kill_date is a golden-ticket-class raise. A stolen old key must not sign after death. Only a shorter remaining life is allowed. This is not a sixth identity record.",
+                ));
+            }
+        }
+        for (signed_hex, signed_date) in &signed_previous {
+            let signed_hex = signed_hex.trim();
+            if signed_hex.is_empty() {
+                continue;
+            }
+            let matching: Vec<_> = issuer
+                .previous_issuer_keys
+                .iter()
+                .filter(|previous| previous.public_key_hex.trim() == signed_hex)
+                .collect();
+            if matching.is_empty() {
+                return Err(Error::denied(
+                    "A signed previous issuer key cannot be omitted after rotate. A later write that drops a previous key that a signed issuer_rotate note already records is refused. Omitting the key would treat a stolen old key as never-previous. That is a golden-ticket-class raise. Verify must not accept a stolen key after kill_date. This is not a sixth identity record.",
+                ));
+            }
+            let file_date = stored
+                .previous_issuer_keys
+                .iter()
+                .find(|previous| previous.public_key_hex.trim() == signed_hex)
+                .map(|previous| previous.kill_date);
+            let freeze = match file_date {
+                Some(file) => file.min(*signed_date),
+                None => *signed_date,
+            };
+            if matching[0].kill_date > freeze {
                 return Err(Error::denied(
                     "A previous issuer key kill_date is frozen after rotate. A later write that moves that kill_date later is refused. Postponing a previous-key kill_date is a golden-ticket-class raise. A stolen old key must not sign after death. Only a shorter remaining life is allowed. This is not a sixth identity record.",
                 ));
@@ -502,14 +562,17 @@ impl Store {
         Ok(())
     }
 
-    /// threshold_n cannot be lowered. Lowering is a persist-raise class.
+    /// threshold_n cannot be lowered. The floor is the greater of the stored
+    /// file n and the highest signed issuance.log n. A planted file n of 1
+    /// must not let a persist write 1 when the signed log already raised n.
     fn require_issuer_threshold_not_lowered(&self, stored: &Issuer, issuer: &Issuer) -> Result<()> {
         if issuer.threshold_n < 1 {
             return Err(Error::denied(
                 "The threshold_n value must be at least 1. A threshold of zero is refused. The check fails closed.",
             ));
         }
-        if issuer.threshold_n < stored.threshold_n {
+        let floor = stored.threshold_n.max(self.highest_log_threshold_n()?);
+        if issuer.threshold_n < floor {
             return Err(Error::denied(
                 "The threshold_n value cannot be lowered. Lowering the threshold is a persist-raise class. The check fails closed.",
             ));
@@ -519,22 +582,24 @@ impl Store {
 
     /// verify_threshold_n cannot be lowered. Lowering is a persist-raise class.
     /// This is not issuance threshold_n.
+    /// Floor is the greater of the file n and the highest signed
+    /// issuer_verify_threshold note n. A planted file at 1 cannot persist 1
+    /// when the signed raise is 2.
     fn require_issuer_verify_threshold_not_lowered(
         &self,
         stored: &Issuer,
         issuer: &Issuer,
     ) -> Result<()> {
-        let stored_n = if stored.verify_threshold_n < 1 {
-            1
-        } else {
-            stored.verify_threshold_n
-        };
         if issuer.verify_threshold_n < 1 {
             return Err(Error::denied(
                 "The verify_threshold_n value must be at least 1. A verify threshold of zero is refused. The check fails closed.",
             ));
         }
-        if issuer.verify_threshold_n < stored_n {
+        let floor = stored
+            .verify_threshold_n
+            .max(1)
+            .max(self.highest_log_verify_threshold_n()?);
+        if issuer.verify_threshold_n < floor {
             return Err(Error::denied(
                 "The verify_threshold_n value cannot be lowered. Lowering the verify threshold is a persist-raise class. A stolen single member secret must not verify a foreign act. The check fails closed.",
             ));
@@ -611,13 +676,211 @@ impl Store {
         Ok(())
     }
 
+    /// Highest signed issuance threshold_n on issuance.log.
+    /// Each line stores event.threshold_n. An empty log returns 1.
+    /// This function must not call load_issuer.
+    pub fn highest_log_threshold_n(&self) -> Result<u32> {
+        let mut highest = 1u32;
+        for event in self.read_log()? {
+            highest = highest.max(event.threshold_n.max(1));
+        }
+        Ok(highest)
+    }
+
+    /// True when issuance.log already has a signed issuer_seal line.
+    /// This function must not call load_issuer.
+    pub fn log_has_issuer_seal(&self) -> Result<bool> {
+        for event in self.read_log()? {
+            if event.operation == "issuer_seal" {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// Timestamp of the first signed issuer_seal line on issuance.log.
+    /// This function must not call load_issuer. An empty log returns None.
+    pub fn earliest_issuer_seal_timestamp(&self) -> Result<Option<DateTime<Utc>>> {
+        for event in self.read_log()? {
+            if event.operation == "issuer_seal" {
+                return Ok(Some(event.timestamp));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Earliest parseable issuer.kill_date on a signed issuer_seal note.
+    /// Walks read_log only. This function must not call load_issuer.
+    /// Each issuer_seal note stores issuer.kill_date as RFC3339.
+    /// Unparseable notes are skipped. No parseable note returns None.
+    /// A later shorten writes a later line with an earlier date. The minimum is live.
+    pub fn signed_issuer_seal_kill_date(&self) -> Result<Option<DateTime<Utc>>> {
+        const PREFIX: &str = "issuer.kill_date=";
+        let mut earliest: Option<DateTime<Utc>> = None;
+        for event in self.read_log()? {
+            if event.operation != "issuer_seal" {
+                continue;
+            }
+            let Some(note) = event.note.as_deref() else {
+                continue;
+            };
+            let Some(start) = note.find(PREFIX) else {
+                continue;
+            };
+            let rest = &note[start + PREFIX.len()..];
+            let token = rest
+                .split_whitespace()
+                .next()
+                .unwrap_or(rest)
+                .trim_end_matches('.');
+            let Ok(parsed) = DateTime::parse_from_rfc3339(token) else {
+                continue;
+            };
+            let parsed = parsed.with_timezone(&Utc);
+            earliest = Some(match earliest {
+                Some(current) => current.min(parsed),
+                None => parsed,
+            });
+        }
+        Ok(earliest)
+    }
+
+    /// Earliest parseable previous-key kill_date on a signed issuer_rotate note.
+    /// Walks read_log only. This function must not call load_issuer.
+    /// Each issuer_rotate note stores previous_public_key as hex and kill_date as RFC3339.
+    /// The kill_date token is not the issuer.kill_date seal prefix.
+    /// Unparseable notes are skipped. The same previous public key on more than
+    /// one rotate line keeps the minimum date.
+    pub fn signed_previous_issuer_key_kill_dates(&self) -> Result<Vec<(String, DateTime<Utc>)>> {
+        let mut dates: Vec<(String, DateTime<Utc>)> = Vec::new();
+        for event in self.read_log()? {
+            if event.operation != "issuer_rotate" {
+                continue;
+            }
+            let Some(note) = event.note.as_deref() else {
+                continue;
+            };
+            let Some((public_key, kill_date)) = previous_key_and_kill_date_from_rotate_note(note)
+            else {
+                continue;
+            };
+            if let Some((_, existing)) = dates.iter_mut().find(|(key, _)| key == &public_key) {
+                if kill_date < *existing {
+                    *existing = kill_date;
+                }
+            } else {
+                dates.push((public_key, kill_date));
+            }
+        }
+        Ok(dates)
+    }
+
+    /// Highest signed verify_threshold_n on a signed issuer_verify_threshold note.
+    /// Walks read_log only. This function must not call load_issuer.
+    /// Each issuer_verify_threshold note stores n after "verify_threshold_n to ".
+    /// Unparseable notes are skipped. No parseable note returns 1.
+    pub fn highest_log_verify_threshold_n(&self) -> Result<u32> {
+        const PREFIX: &str = "verify_threshold_n to ";
+        let mut highest = 1u32;
+        for event in self.read_log()? {
+            if event.operation != "issuer_verify_threshold" {
+                continue;
+            }
+            let Some(note) = event.note.as_deref() else {
+                continue;
+            };
+            let Some(start) = note.find(PREFIX) else {
+                continue;
+            };
+            let rest = &note[start + PREFIX.len()..];
+            let token = rest
+                .split_whitespace()
+                .next()
+                .unwrap_or(rest)
+                .trim_end_matches('.');
+            let Ok(parsed) = token.parse::<u32>() else {
+                continue;
+            };
+            highest = highest.max(parsed);
+        }
+        Ok(highest)
+    }
+
+    /// Load issuer.json. If the unsigned file threshold_n is lower than the
+    /// highest signed issuance.log n, set the in-memory n to that log n.
+    /// Do not write the file. A planted lower n is not live.
+    /// If the unsigned file kill_date is missing and a signed issuer_seal
+    /// line already exists, set the in-memory kill_date to that first seal
+    /// timestamp. Do not write the file. A planted clear is not live.
+    /// If the unsigned file kill_date is later than the earliest signed
+    /// issuer.kill_date on an issuer_seal note, set the in-memory kill_date
+    /// to that signed date. Do not write the file. A planted later date is
+    /// not live.
+    /// If a previous_issuer_keys kill_date is later than the earliest signed
+    /// kill_date on an issuer_rotate note for that public key, set the
+    /// in-memory previous-key kill_date to that signed date. Do not write
+    /// the file. A planted later previous-key date is not live.
+    /// If a signed issuer_rotate note records a previous public key that
+    /// is not in the file, restore that previous key in memory. Do not
+    /// write the file. A planted drop is not live.
+    /// If the unsigned file verify_threshold_n is lower than the
+    /// highest signed issuer_verify_threshold note n, set the
+    /// in-memory n to that log n. Do not write the file. A planted
+    /// lower n is not live.
+    /// Do not overlay accepted_previous_issuer_keys.
     pub fn load_issuer(&self) -> Result<Issuer> {
         if !self.issuer_path().exists() {
             return Err(Error::kernel(
                 "The issuer record is missing. Run the init command first.",
             ));
         }
-        self.read_json(&self.issuer_path())
+        let mut issuer: Issuer = self.read_json(&self.issuer_path())?;
+        let log_n = self.highest_log_threshold_n()?;
+        if issuer.threshold_n < log_n {
+            issuer.threshold_n = log_n;
+        }
+        if issuer.kill_date.is_none() {
+            if let Some(seal_timestamp) = self.earliest_issuer_seal_timestamp()? {
+                issuer.kill_date = Some(seal_timestamp);
+            }
+        }
+        if let (Some(file_date), Some(signed_date)) =
+            (issuer.kill_date, self.signed_issuer_seal_kill_date()?)
+        {
+            if file_date > signed_date {
+                issuer.kill_date = Some(signed_date);
+            }
+        }
+        let signed_previous = self.signed_previous_issuer_key_kill_dates()?;
+        for entry in &mut issuer.previous_issuer_keys {
+            let hex = entry.public_key_hex.trim();
+            let Some((_, signed)) = signed_previous.iter().find(|(key, _)| key.trim() == hex)
+            else {
+                continue;
+            };
+            if entry.kill_date > *signed {
+                entry.kill_date = *signed;
+            }
+        }
+        for (public_key_hex, kill_date) in &signed_previous {
+            let hex = public_key_hex.trim();
+            let already_present = issuer
+                .previous_issuer_keys
+                .iter()
+                .any(|entry| entry.public_key_hex.trim() == hex);
+            if already_present {
+                continue;
+            }
+            issuer.previous_issuer_keys.push(PreviousIssuerKey {
+                public_key_hex: hex.to_string(),
+                kill_date: *kill_date,
+            });
+        }
+        let log_verify_n = self.highest_log_verify_threshold_n()?;
+        if issuer.verify_threshold_n < log_verify_n {
+            issuer.verify_threshold_n = log_verify_n;
+        }
+        Ok(issuer)
     }
 
     pub fn save_secret(&self, private_key_hexadecimal: &str) -> Result<()> {
@@ -1358,4 +1621,42 @@ impl Store {
         }
         text.lines().any(|existing| existing == line)
     }
+}
+
+/// Parse previous_public_key and kill_date from an issuer_rotate note.
+/// Skip issuer.kill_date. Skip a note that does not parse. Do not panic.
+fn previous_key_and_kill_date_from_rotate_note(note: &str) -> Option<(String, DateTime<Utc>)> {
+    const PUBLIC_PREFIX: &str = "previous_public_key=";
+    let start = note.find(PUBLIC_PREFIX)?;
+    let rest = &note[start + PUBLIC_PREFIX.len()..];
+    let public_key = rest
+        .split_whitespace()
+        .next()
+        .unwrap_or(rest)
+        .trim_end_matches('.')
+        .trim()
+        .to_string();
+    if public_key.is_empty() {
+        return None;
+    }
+    let mut search = note;
+    let kill_token = loop {
+        let Some(at) = search.find("kill_date=") else {
+            return None;
+        };
+        let before = &search[..at];
+        if before.ends_with("issuer.") {
+            search = &search[at + "kill_date=".len()..];
+            continue;
+        }
+        let after = &search[at + "kill_date=".len()..];
+        let token = after
+            .split_whitespace()
+            .next()
+            .unwrap_or(after)
+            .trim_end_matches('.');
+        break token;
+    };
+    let parsed = DateTime::parse_from_rfc3339(kill_token).ok()?;
+    Some((public_key, parsed.with_timezone(&Utc)))
 }
